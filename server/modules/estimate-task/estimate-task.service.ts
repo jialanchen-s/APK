@@ -149,7 +149,7 @@ export class EstimateTaskService {
         .update(estimateTasks)
         .set({ status: 'failed' })
         .where(eq(estimateTasks.id, taskId))
-        .catch(() => {});
+        .catch((err) => this.logger.warn('标记任务失败状态时出错', err));
     });
 
     return { id: taskId, status: 'processing' };

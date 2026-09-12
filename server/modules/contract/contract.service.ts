@@ -183,7 +183,7 @@ export class ContractService {
         target: previewStore.previewId,
         set: { items: sql`${JSON.stringify(items)}::jsonb`, createdAt: Date.now(), domain },
       });
-    this.purgeExpiredPreviews().catch(() => {});
+    this.purgeExpiredPreviews().catch((err) => this.logger.warn('清理过期预览失败', err));
 
     const validCount = items.filter((i) => i.status === 'valid').length;
 
@@ -328,7 +328,7 @@ export class ContractService {
       batch_id: batchId,
       batch_name: finalBatchName,
       domain,
-    }).catch(() => {});
+    }).catch((err) => this.logger.warn('记录归档日志失败', err));
 
     await this.db.delete(previewStore).where(eq(previewStore.previewId, previewId));
 
@@ -554,7 +554,7 @@ export class ContractService {
       operator: userName || userId,
       operate_time: new Date().toISOString(),
       count: -result.length,
-    }).catch(() => {});
+    }).catch((err) => this.logger.warn('记录删除日志失败', err));
 
     return { success: true, deletedCount: result.length };
   }
@@ -694,7 +694,7 @@ export class ContractService {
         operate_time: new Date().toISOString(),
         count: -result.length,
         batch_name: batchName || batchId,
-      }).catch(() => {});
+      }).catch((err) => this.logger.warn('记录批量删除日志失败', err));
     }
 
     return { success: true, deletedCount: result.length, batchName };
@@ -726,7 +726,7 @@ export class ContractService {
         operate_time: new Date().toISOString(),
         count: -result.length,
         batch_name: `手动清理驳回数据（${ARCHIVE_DOMAIN_LABELS[d]}）`,
-      }).catch(() => {});
+      }).catch((err) => this.logger.warn('记录清理驳回数据日志失败', err));
     }
 
     return {
