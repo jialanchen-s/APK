@@ -74,7 +74,7 @@ const UploadZone = ({ onTaskCreated, domain }: UploadZoneProps) => {
   const refreshProjectList = useCallback(() => {
     getContractProjects(domain)
       .then((res) => setProjectList(res.projects))
-      .catch(() => {});
+      .catch((err) => logger.warn('获取项目列表失败', err));
   }, [domain]);
 
   useEffect(() => { refreshProjectList(); }, [refreshProjectList]);
