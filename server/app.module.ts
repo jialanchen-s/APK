@@ -1,6 +1,5 @@
 import { APP_FILTER } from '@nestjs/core';
-import { Module, Logger } from '@nestjs/common';
-import { PlatformModule } from '@lark-apaas/fullstack-nestjs-core';
+import { Module, Logger, MiddlewareConsumer, NestModule } from '@nestjs/common';
 
 process.on('unhandledRejection', (reason) => {
   const detail = reason instanceof Error ? `${reason.message}\n${reason.stack}` : JSON.stringify(reason);
@@ -8,7 +7,11 @@ process.on('unhandledRejection', (reason) => {
 });
 
 import { GlobalExceptionFilter } from './common/filters/exception.filter';
-import { DbPermissionResolver } from './modules/permission/db-permission-resolver';
+import { DatabaseModule } from './common/database/database.module';
+import { CapabilityModule } from './common/capability/capability.module';
+import { FileStorageModule } from './common/file/file-storage.module';
+import { AuthorizationModule } from './common/auth/authorization.module';
+import { UserContextMiddleware } from './common/auth/user-context.middleware';
 import { PermissionModule } from './modules/permission/permission.module';
 import { RoleManagerModule } from './modules/role-manager/role-manager.module';
 import { EstimateTaskModule } from './modules/estimate-task/estimate-task.module';
@@ -22,14 +25,12 @@ import { AIModule } from './common/ai/ai.module';
 
 @Module({
   imports: [
-    // 平台 Module，提供平台能力
-    PlatformModule.forRoot({
-      authz: { permissionResolver: DbPermissionResolver },
-    }),
-    // AI Gateway：多模型适配 + 降级 + 缓存
+    DatabaseModule,
+    CapabilityModule,
+    FileStorageModule,
+    AuthorizationModule,
     AIModule,
     // ====== @route-section: business-modules START ======
-    // Place all business modules here.Do NOT add fallback modules here.
     PermissionModule,
     RoleManagerModule,
     EstimateTaskModule,
@@ -39,9 +40,6 @@ import { AIModule } from './common/ai/ai.module';
     AgentModule,
     PriceQueryModule,
     // ====== @route-section: business-modules END ======
-
-    // ⚠️ @route-order: last
-    // ViewModule is the fallback route module, must be registered last.
     ViewModule,
   ],
   providers: [
@@ -51,4 +49,8 @@ import { AIModule } from './common/ai/ai.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(UserContextMiddleware).forRoutes('*');
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "id": "welding_cost_anomaly_detection_1",
+  "pluginKey": "@official-plugins/ai-text-to-json",
+  "pluginVersion": "1.0.26",
+  "name": "焊装费用异常检测",
+  "description": "对焊装费用测算结果与历史合同数据的对比文本进行分析，检测异常情况并生成结构化评估结果",
+  "icon": "",
+  "paramsSchema": {
+    "required": [
+      "comparison_text"
+    ],
+    "type": "object",
+    "properties": {
+      "comparison_text": {
+        "description": "测算结果与历史合同数据的对比文本，包含设备名称、测算单价、历史均价、偏离百分比等信息",
+        "type": "string"
+      }
+    }
+  },
+  "formValue": {
+    "jsonStructure": [
+      {
+        "name": "anomaly_levels",
+        "paramDescription": "异常等级列表，按设备顺序对应每个设备的异常等级，值为normal/warning/critical，多个用英文逗号分隔",
+        "paramType": "String"
+      },
+      {
+        "paramDescription": "总体评估说明，对本次焊装费用整体偏离情况的综合分析",
+        "paramType": "String",
+        "name": "overall_assessment"
+      },
+      {
+        "name": "recommendation",
+        "paramDescription": "处理建议，针对异常情况给出具体可执行的应对措施",
+        "paramType": "String"
+      },
+      {
+        "paramType": "String",
+        "name": "risk_level",
+        "paramDescription": "整体风险等级，值为low/medium/high，根据异常数量和严重程度综合判断"
+      },
+      {
+        "paramType": "Number",
+        "name": "anomaly_count",
+        "paramDescription": "warning和critical级别的异常项总数量"
+      },
+      {
+        "name": "anomaly_devices",
+        "paramDescription": "异常设备名称列表，所有warning和critical级别的设备名称，多个用英文逗号分隔",
+        "paramType": "String"
+      }
+    ],
+    "modelID": "2015",
+    "modelParams": {
+      "temperature": 0.5,
+      "maxTokens": 8192
+    },
+    "prompt": "你是一位专业的工业制造费用分析专家，擅长从焊装费用对比数据中识别异常情况并提供专业评估。\n\n请对以下焊装费用测算结果与历史合同数据的对比文本进行异常检测分析：\n{{input.comparison_text}}\n\n分析要求：\n1. 识别所有设备的单价偏离情况，根据偏离百分比判断异常等级：\n   - 偏离≤5%：normal（正常）\n   - 5%<偏离≤15%：warning（警告）\n   - 偏离>15%：critical（严重）\n2. 统计所有异常设备信息并按要求输出对应字段\n3. 评估说明需客观准确，处理建议需具备可操作性\n4. 必须输出全部 6 个字段（anomaly_levels、overall_assessment、recommendation、risk_level、anomaly_count、anomaly_devices），任何字段都禁止返回 null 或省略：没有检测到异常时 anomaly_levels 填 normal、anomaly_count 填 0、anomaly_devices 填空字符串、risk_level 按整体情况填 low/medium/high，文本信息不足时 overall_assessment 和 recommendation 填写基于输入文本的合理说明"
+  },
+  "createdAt": 1787824144477,
+  "updatedAt": 1787824663488,
+  "createdBy": 7655134184580205524
+}

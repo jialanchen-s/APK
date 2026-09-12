@@ -1,0 +1,38 @@
+{
+  "id": "manufacturing_contract_detail_extract_1",
+  "pluginKey": "@official-plugins/ai-text-to-json",
+  "pluginVersion": "1.0.26",
+  "name": "制造费用合同文本结构化提取",
+  "description": "从制造费用类PDF合同解析出的Markdown文本中提取设备/费用明细行，输出结构化JSON数组字符串。",
+  "icon": "",
+  "paramsSchema": {
+    "required": [
+      "contract_content"
+    ],
+    "type": "object",
+    "properties": {
+      "contract_content": {
+        "description": "制造费用合同解析后的Markdown文本内容",
+        "type": "string"
+      }
+    }
+  },
+  "formValue": {
+    "modelID": "2015",
+    "modelParams": {
+      "temperature": 0.1,
+      "maxTokens": 8192
+    },
+    "prompt": "你是一位专业的制造行业合同数据提取专家，擅长从制造费用类合同文本中精准提取设备和费用明细信息。\n\n请从以下合同文本里识别所有设备清单、费用清单或报价明细表，按行提取明细数据，每行对应数组的一个元素；如果文本里有多张表，全部提取合并到一个数组；中文列名请严格按照以下对应关系映射：\n- 项目/工程名称 → project\n- 设备名称/费用项目名称 → device_material_name（必填项，未提取到填空字符串）\n- 规格型号/技术参数 → specification\n- 单价（元） → unit_price\n- 价格口径（含税/未税，默认未税） → price_caliber\n- 单位（如台、套、项、个） → unit\n- 数量 → quantity\n- 小计/合价（元） → subtotal\n- 品牌/供应商 → selected_brand\n- 结算日期（YYYY-MM-DD格式，没有则留空） → settle_date\n- 备注 → remark\n\n合同文本内容：\n{{input.contract_content}}\n\n提取规则：\n1. 未提取到的字符串类型字段填空字符串，数字类型字段填0，禁止使用null\n2. 整体输出必须是合法JSON数组字符串，以[开头、]结尾\n3. 制造费用合同不区分线别，不需要输出line_type字段\n4. 严格按照指定字段名称输出，不要添加或减少字段",
+    "jsonStructure": [
+      {
+        "name": "rowsJson",
+        "paramDescription": "设备/费用明细列表，items schema: {project: string(项目/工程名称), device_material_name: string(设备名称或费用项目名称，必填), specification: string(规格型号/技术参数), unit_price: number(单价（元）), price_caliber: string(价格口径（含税/未税，默认未税）), unit: string(单位（如 台、套、项、个）), quantity: number(数量), subtotal: number(小计/合价（元）), selected_brand: string(品牌/供应商), settle_date: string(结算日期（YYYY-MM-DD 格式，没有则留空）), remark: string(备注)}",
+        "paramType": "Array"
+      }
+    ]
+  },
+  "createdAt": 1787911703873,
+  "updatedAt": 1789036406973,
+  "createdBy": 7655134184580205524
+}

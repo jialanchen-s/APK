@@ -1,0 +1,72 @@
+{
+  "id": "welding_equipment_intelligent_matching_1",
+  "pluginKey": "@official-plugins/ai-text-to-json",
+  "pluginVersion": "1.0.26",
+  "name": "焊装设备与测算模型智能匹配",
+  "description": "根据输入的焊装设备信息和可用模型列表，智能匹配最合适的测算模型，输出匹配结果及置信度",
+  "icon": "",
+  "paramsSchema": {
+    "properties": {
+      "spec_description": {
+        "type": "string",
+        "description": "设备规格描述文本（可选）"
+      },
+      "device_name": {
+        "type": "string",
+        "description": "需要匹配的焊装设备名称"
+      },
+      "available_models": {
+        "type": "string",
+        "description": "可用测算模型列表JSON数组字符串，含模型ID和名称"
+      }
+    },
+    "required": [
+      "device_name",
+      "available_models"
+    ],
+    "type": "object"
+  },
+  "formValue": {
+    "prompt": "你是一位焊装设备与测算模型匹配专家，具备丰富的焊装工艺知识和模型匹配经验。\n\n请根据以下信息完成焊装设备与测算模型的智能匹配：\n\n焊装设备名称：{{input.device_name}}\n可用测算模型列表：{{input.available_models}}\n设备规格描述：{{input.spec_description}}\n\n匹配规则：\n1. 优先根据设备名称与模型名称的语义相似度进行匹配\n2. 结合设备规格描述进一步确认匹配准确性\n3. 置信度评分标准：\n   - 90-100：完全匹配，设备名称与模型名称高度相关，规格描述完全符合\n   - 70-89：高度匹配，设备名称与模型名称相关性强，规格描述基本符合\n   - 50-69：一般匹配，设备名称与模型名称有一定相关性，规格描述部分符合\n   - 0-49：不匹配，无相关模型\n4. 当存在多个高匹配度模型时，选择置信度最高的作为主匹配模型，次高的作为备选模型\n5. 若无匹配模型，matched_model_id和matched_model_name填空字符串，confidence填0\n6. 必须输出全部 6 个字段（matched_model_id、matched_model_name、confidence、match_reason、alternative_model_id、alternative_model_name），任何字段都禁止返回 null 或省略：没有找到匹配模型时 matched_model_id 和 matched_model_name 填空字符串、confidence 填 0、match_reason 填无法匹配的原因说明，没有备选模型时 alternative_model_id 和 alternative_model_name 填空字符串\n\n输出要求：\n- 严格按照指定的JSON结构输出，不要添加额外字段\n- 置信度为整数，范围0-100\n- 匹配原因需简洁明了，说明匹配依据\n",
+    "jsonStructure": [
+      {
+        "paramDescription": "匹配的模型ID，无匹配为空字符串",
+        "name": "matched_model_id",
+        "paramType": "String"
+      },
+      {
+        "paramDescription": "匹配的模型名称",
+        "name": "matched_model_name",
+        "paramType": "String"
+      },
+      {
+        "name": "confidence",
+        "paramType": "Number",
+        "paramDescription": "匹配置信度，范围0-100的整数"
+      },
+      {
+        "paramDescription": "匹配原因说明，简要描述匹配依据",
+        "name": "match_reason",
+        "paramType": "String"
+      },
+      {
+        "name": "alternative_model_id",
+        "paramType": "String",
+        "paramDescription": "备选模型ID，无不匹配为空字符串"
+      },
+      {
+        "name": "alternative_model_name",
+        "paramType": "String",
+        "paramDescription": "备选模型名称"
+      }
+    ],
+    "modelID": "2015",
+    "modelParams": {
+      "temperature": 0.5,
+      "maxTokens": 8192
+    }
+  },
+  "createdAt": 1787824148205,
+  "updatedAt": 1787824687453,
+  "createdBy": 7655134184580205524
+}

@@ -1,5 +1,5 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import type { CapabilityService } from '@lark-apaas/fullstack-nestjs-core';
+import { Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
+import { LocalCapabilityService } from '@server/common/capability/local-capability.service';
 import { AIGatewayService } from './ai-gateway.service';
 import { ApaasPluginAdapter } from './apaas-plugin-adapter';
 import { DeepSeekAdapter } from './deepseek-adapter';
@@ -19,15 +19,19 @@ export class AIBootstrapService implements OnModuleInit {
 
   constructor(
     private readonly gateway: AIGatewayService,
-    @Inject() private readonly capabilityService: CapabilityService,
+    @Optional() @Inject() private readonly capabilityService: LocalCapabilityService,
   ) {}
 
   onModuleInit(): void {
     const env = readAIProviderEnv();
 
-    this.gateway.registerAdapter(
-      new ApaasPluginAdapter({ capabilityService: this.capabilityService }),
-    );
+    if (this.capabilityService) {
+      this.gateway.registerAdapter(
+        new ApaasPluginAdapter({ capabilityService: this.capabilityService }),
+      );
+    } else {
+      this.logger.warn('CapabilityService not available — ApaasPluginAdapter skipped');
+    }
 
     const deepseekCfg = buildDeepSeekConfig(env);
     if (deepseekCfg) {

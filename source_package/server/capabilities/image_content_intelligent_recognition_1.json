@@ -1,0 +1,19 @@
+{
+  "id": "image_content_intelligent_recognition_1",
+  "pluginKey": "@official-plugins/ai-image-understanding",
+  "pluginVersion": "1.0.19",
+  "name": "图片理解",
+  "description": "对图片内容进行智能识别与解读，回答相关问题",
+  "icon": "https://lf3-static.bytednsdoc.com/obj/eden-cn/fzgeh7nuhfboznulog/ai_image_understand.svg",
+  "paramsSchema": {},
+  "formValue": {
+    "modelParams": {
+      "temperature": 0.7,
+      "maxTokens": 8192
+    },
+    "modelID": "88"
+  },
+  "createdAt": 1783410112546,
+  "updatedAt": 1783410112546,
+  "createdBy": 7655134184580205524
+}

@@ -1,0 +1,45 @@
+{
+  "id": "image_content_intelligent_recognition_1",
+  "pluginKey": "@official-plugins/ai-image-understanding",
+  "pluginVersion": "1.0.22",
+  "name": "图片内容智能识别",
+  "description": "基于AI图片理解插件，对上传的图片（如焊装设备表格截图）进行内容识别并转写为文本，支持流式输出识别结果。",
+  "icon": "",
+  "paramsSchema": {
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "description": "图片内容识别提示词"
+      },
+      "images": {
+        "type": "array",
+        "format": "plugin-image-url",
+        "description": "待识别的图片数组",
+        "items": {
+          "type": "string"
+        }
+      },
+      "modelID": {
+        "type": "string",
+        "description": "模型ID"
+      }
+    },
+    "required": [
+      "prompt",
+      "images"
+    ],
+    "type": "object"
+  },
+  "formValue": {
+    "prompt": "{{input.prompt}}",
+    "images": "{{input.images}}",
+    "modelID": "{{input.modelID}}",
+    "modelParams": {
+      "maxTokens": 4096,
+      "temperature": 0.2
+    }
+  },
+  "createdAt": 1787824210875,
+  "updatedAt": 1789033506781,
+  "createdBy": 7655134184580205524
+}

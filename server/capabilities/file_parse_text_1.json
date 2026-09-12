@@ -1,0 +1,30 @@
+{
+  "id": "file_parse_text_1",
+  "pluginKey": "@official-plugins/ai-doc-parser",
+  "pluginVersion": "1.0.16",
+  "name": "文档解析为Markdown文本",
+  "description": "将PDF/Word等格式文档解析为markdown文本内容",
+  "icon": "",
+  "paramsSchema": {
+    "required": [
+      "fileUrl"
+    ],
+    "type": "object",
+    "properties": {
+      "fileUrl": {
+        "type": "array",
+        "description": "待解析的文件数组",
+        "items": {
+          "type": "string",
+          "description": "文件Url地址"
+        }
+      }
+    }
+  },
+  "formValue": {
+    "fileUrl": "{{input.fileUrl}}"
+  },
+  "createdAt": 1787824169975,
+  "updatedAt": 1787824169975,
+  "createdBy": 7655134184580205524
+}

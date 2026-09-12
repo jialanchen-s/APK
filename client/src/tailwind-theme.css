@@ -1,0 +1,277 @@
+:root {
+  --button-outline: rgba(10, 10, 10, 0.1);
+  --badge-outline: rgba(10, 10, 10, 0.05);
+
+  --opaque-button-border-intensity: -8;
+
+  --elevate-1: rgba(10, 10, 10, 0.03);
+  --elevate-2: rgba(10, 10, 10, 0.07);
+
+  /* 柔光素锦色彩体系：银灰画布 / 近黑墨色 / 深墨绿点睛 */
+  --background: #F2F2F0;
+  --foreground: #0A0A0A;
+  --card: #FCFCFA;
+  --card-foreground: #18181B;
+  --popover: #FCFCFA;
+  --popover-foreground: #18181B;
+  --primary: #0A0A0A;
+  --primary-foreground: #F2F2F0;
+  --secondary: #E8E8E5;
+  --secondary-foreground: #18181B;
+  --muted: #E8E8E5;
+  --muted-foreground: #57575A;
+  --accent: #E7EEEA;
+  --accent-foreground: #1F4D3F;
+  --info: #3E6B59;
+  --info-foreground: #FDFBF7;
+  --destructive: #C45454;
+  --destructive-foreground: #FDFBF7;
+  --success: #1F4D3F;
+  --success-foreground: #F2F2F0;
+  --warning: #A07E4F;
+  --warning-foreground: #FDFBF7;
+  --border: rgba(10, 10, 10, 0.08);
+  --input: rgba(10, 10, 10, 0.12);
+  --ring: #1F4D3F;
+  --chart-1: #1F4D3F;
+  --chart-2: #5A8C7A;
+  --chart-3: #0A0A0A;
+  --chart-4: #C9B79A;
+  --chart-5: #57575A;
+  --sidebar: #FDFBF7;
+  --sidebar-foreground: #18181B;
+  --sidebar-primary: #1F4D3F;
+  --sidebar-primary-foreground: #F2F2F0;
+  --sidebar-accent: #E8E8E5;
+  --sidebar-accent-foreground: #18181B;
+  --sidebar-border: rgba(10, 10, 10, 0.08);
+  --sidebar-ring: #1F4D3F;
+
+  --primary-border: rgba(10, 10, 10, 0.22);
+  --secondary-border: rgba(10, 10, 10, 0.1);
+  --destructive-border: rgba(120, 40, 40, 0.25);
+  --accent-border: rgba(31, 77, 63, 0.18);
+  --muted-border: rgba(10, 10, 10, 0.1);
+
+  --font-sans:
+    "Plus Jakarta Sans", "PingFang SC", "Microsoft YaHei", "Noto Sans SC",
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-serif:
+    "Plus Jakarta Sans", "PingFang SC", ui-serif, Georgia, Cambria,
+    "Times New Roman", Times, serif;
+  --font-mono:
+    "JetBrains Mono", "Geist Mono", "PingFang SC", ui-monospace, "SF Mono",
+    Consolas, Menlo, monospace;
+
+  /* 柔光素锦圆角刻度：大 squircle + 同心内芯 */
+  --radius: 1rem;
+  /* 弥散阴影唯一形态：宽扩散、低透明、负 spread */
+  --shadow-2xs: 0 0 0 1px rgba(10, 10, 10, 0.05);
+  --shadow-xs: 0 0 0 1px rgba(10, 10, 10, 0.06);
+  --shadow-sm:
+    0 0 0 1px rgba(10, 10, 10, 0.08),
+    0 24px 48px -28px rgba(10, 10, 10, 0.18);
+  --shadow:
+    0 0 0 1px rgba(10, 10, 10, 0.08),
+    0 30px 60px -28px rgba(10, 10, 10, 0.22);
+  --shadow-md:
+    0 0 0 1px rgba(10, 10, 10, 0.1),
+    0 36px 72px -30px rgba(10, 10, 10, 0.26);
+  --shadow-lg:
+    0 0 0 1px rgba(10, 10, 10, 0.1),
+    0 42px 84px -32px rgba(10, 10, 10, 0.3);
+  --shadow-xl:
+    0 0 0 1px rgba(10, 10, 10, 0.12),
+    0 48px 96px -34px rgba(10, 10, 10, 0.34);
+  --shadow-2xl:
+    0 0 0 1px rgba(10, 10, 10, 0.12),
+    0 56px 112px -38px rgba(10, 10, 10, 0.38);
+
+  /* 运动签名：自定义缓动，禁 linear / ease-in-out */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.16, 1.16, 0.3, 1);
+
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* 品牌与画布扩展色（柔光素锦） */
+  --color-brand: #1F4D3F;
+  --color-brand-glow: #5A8C7A;
+  --color-sand: #C9B79A;
+  --color-canvas: #F2F2F0;
+  --color-cream: #FDFBF7;
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+
+  --radius-sm: calc(var(--radius) - 0.5rem);
+  --radius-md: calc(var(--radius) - 0.25rem);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 0.375rem);
+  --radius-2xl: 1.375rem;
+  --radius-3xl: 2.25rem;
+  --radius-4xl: 2.5rem;
+
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+
+  --ease-soft: var(--ease);
+  --ease-springy: var(--ease-spring);
+
+  --default-transition-timing-function: var(--ease);
+}
+
+@layer base {
+  body {
+    background-color: var(--background);
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer utilities {
+  input[type="search"]::-webkit-search-cancel-button {
+    @apply hidden;
+  }
+
+  [contenteditable][data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    color: var(--muted-foreground);
+    pointer-events: none;
+  }
+
+  .no-default-hover-elevate {}
+  .no-default-active-elevate {}
+
+  .toggle-elevate::before,
+  .toggle-elevate-2::before {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0px;
+    border-radius: inherit;
+    z-index: -1;
+  }
+
+  .toggle-elevate.toggle-elevated::before {
+    background-color: var(--elevate-2);
+  }
+
+  .border.toggle-elevate::before {
+    inset: -1px;
+  }
+
+  .hover-elevate:not(.no-default-hover-elevate),
+  .active-elevate:not(.no-default-active-elevate),
+  .hover-elevate-2:not(.no-default-hover-elevate),
+  .active-elevate-2:not(.no-default-active-elevate) {
+    position: relative;
+    z-index: 0;
+  }
+
+  .hover-elevate:not(.no-default-hover-elevate)::after,
+  .active-elevate:not(.no-default-active-elevate)::after,
+  .hover-elevate-2:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:not(.no-default-active-elevate)::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0px;
+    border-radius: inherit;
+    z-index: 999;
+  }
+
+  .hover-elevate:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-1);
+  }
+
+  .hover-elevate-2:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-2);
+  }
+
+  .border.hover-elevate:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate:not(.no-active-interaction-elevate)::after,
+  .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate-2:not(.no-active-interaction-elevate)::after,
+  .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
+    inset: -1px;
+  }
+}
+
+/* 柔光素锦：环境 mesh 辉光（单团径向，仅 transform 漂移） */
+.mesh-blob {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(circle at 30% 30%, #5A8C7A, transparent 60%);
+  opacity: 0.18;
+  filter: blur(90px);
+  animation: mesh-drift 28s var(--ease) infinite alternate;
+}
+
+@keyframes mesh-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4%, -3%, 0) scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mesh-blob {
+    animation: none;
+  }
+}

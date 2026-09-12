@@ -1,5 +1,5 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
-import { DRIZZLE_DATABASE, type PostgresJsDatabase } from '@lark-apaas/fullstack-nestjs-core';
+import { DRIZZLE_DATABASE } from '@server/common/database/database.module';
 import { eq, and, count, desc, like, or, inArray, ne } from 'drizzle-orm';
 import {
   estimateTask as estimateTasks,
@@ -95,7 +95,7 @@ export class EstimateTaskService {
   }
 
   constructor(
-    @Inject(DRIZZLE_DATABASE) private readonly db: PostgresJsDatabase,
+    @Inject(DRIZZLE_DATABASE) private readonly db: any,
     private readonly modelService: ModelService,
     private readonly aiGateway: AIGatewayService,
   ) {}

@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import type { CapabilityService } from '@lark-apaas/fullstack-nestjs-core';
+import type { LocalCapabilityService } from '@server/common/capability/local-capability.service';
 import type {
   JsonSchemaField,
   JsonValue,
@@ -34,7 +34,7 @@ export const DEFAULT_PLUGIN_IDS: Required<ApaasPluginMapping> = {
 };
 
 export interface ApaasAdapterOptions {
-  capabilityService: CapabilityService;
+  capabilityService: LocalCapabilityService;
   pluginIds?: ApaasPluginMapping;
   timeoutMs?: number;
 }
@@ -42,7 +42,7 @@ export interface ApaasAdapterOptions {
 export class ApaasPluginAdapter implements LLMAdapter {
   readonly name = 'apaas-plugin';
   private readonly logger = new Logger(ApaasPluginAdapter.name);
-  private readonly capabilityService: CapabilityService;
+  private readonly capabilityService: LocalCapabilityService;
   private readonly pluginIds: Required<ApaasPluginMapping>;
   private readonly timeoutMs: number;
 
