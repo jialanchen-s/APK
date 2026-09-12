@@ -18,6 +18,10 @@ async function bootstrap() {
     credentials: true,
   });
 
+  app.useBodyParser('json', { limit: '10mb' });
+  app.useBodyParser('urlencoded', { limit: '10mb', extended: true });
+  app.useBodyParser('raw', { limit: '50mb' });
+
   const logger = new Logger('Bootstrap');
   const host = process.env.SERVER_HOST || 'localhost';
   const port = Number(process.env.SERVER_PORT || '3000');
