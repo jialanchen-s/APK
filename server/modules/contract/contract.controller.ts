@@ -10,6 +10,7 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 
@@ -36,6 +37,25 @@ function normalizeDomain(value: string | undefined): ArchiveDomain {
   if (value === undefined || value === '') return 'welding';
   if (value === 'welding' || value === 'manufacturing' || value === 'painting' || value === 'stamping') return value;
   throw new BadRequestException('domain 参数仅支持 welding、manufacturing、painting、stamping');
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function requireBatchId(value: string | undefined): string {
+  if (!value || !UUID_PATTERN.test(value)) {
+    throw new BadRequestException('batchId 必须为合法的 UUID');
+  }
+  return value;
+}
+
+function requireUuidList(value: string[] | undefined, field: string): string[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new BadRequestException(`${field} 不能为空`);
+  }
+  if (value.some((id) => !UUID_PATTERN.test(id))) {
+    throw new BadRequestException(`${field} 必须为合法的 UUID 列表`);
+  }
+  return value;
 }
 
 import { ContractPdfUploadService } from './contract-pdf-upload.service';
@@ -71,7 +91,7 @@ export class ContractController {
   @NeedLogin()
   @Can('upload', 'ContractArchive')
   @Get('pdf-upload/status/:taskId')
-  async getPdfUploadStatus(@Param('taskId') taskId: string) {
+  async getPdfUploadStatus(@Param('taskId', new ParseUUIDPipe()) taskId: string) {
     return this.pdfUploadService.getExtractionStatus(taskId);
   }
 
@@ -133,6 +153,12 @@ export class ContractController {
     factoryName?: string;
   }) {
     const { userId, userName } = req.userContext;
+    if (!body.previewId) {
+      throw new BadRequestException('previewId 不能为空');
+    }
+    if (!Array.isArray(body.itemIds) || body.itemIds.length === 0) {
+      throw new BadRequestException('itemIds 不能为空');
+    }
     return this.contractService.archive(
       userId,
       userName,
@@ -161,7 +187,7 @@ export class ContractController {
     @Body() body: { ids: string[]; domain?: ArchiveDomain },
   ) {
     const { userId, userName } = req.userContext;
-    return this.contractService.deleteContracts(userId, userName, body.ids, normalizeDomain(body.domain));
+    return this.contractService.deleteContracts(userId, userName, requireUuidList(body.ids, 'ids'), normalizeDomain(body.domain));
   }
 
   @Get('archives/batches')
@@ -205,7 +231,7 @@ export class ContractController {
   @Can('review', 'ContractArchive')
   @Get('reviews/batch-detail')
   async getBatchDetail(
-    @Query('batchId') batchId: string,
+    @Query('batchId', new ParseUUIDPipe()) batchId: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
     @Query('domain') domain?: string,
@@ -220,7 +246,7 @@ export class ContractController {
   @Post('reviews/approve')
   async approveBatch(@Req() req: Request, @Body() body: ContractReviewActionRequest) {
     const { userId, userName } = req.userContext;
-    return this.contractService.approveBatch(userId, userName, body.batchId, body.remark, normalizeDomain(body.domain));
+    return this.contractService.approveBatch(userId, userName, requireBatchId(body.batchId), body.remark, normalizeDomain(body.domain));
   }
 
   @NeedLogin()
@@ -228,7 +254,7 @@ export class ContractController {
   @Post('reviews/reject')
   async rejectBatch(@Req() req: Request, @Body() body: ContractReviewActionRequest) {
     const { userId, userName } = req.userContext;
-    return this.contractService.rejectBatch(userId, userName, body.batchId, body.remark, normalizeDomain(body.domain));
+    return this.contractService.rejectBatch(userId, userName, requireBatchId(body.batchId), body.remark, normalizeDomain(body.domain));
   }
 
   @NeedLogin()
@@ -236,7 +262,7 @@ export class ContractController {
   @Delete('archives/batch')
   async deleteBatch(
     @Req() req: Request,
-    @Query('batchId') batchId: string,
+    @Query('batchId', new ParseUUIDPipe()) batchId: string,
     @Query('domain') domain?: string,
   ) {
     const { userId, userName } = req.userContext;

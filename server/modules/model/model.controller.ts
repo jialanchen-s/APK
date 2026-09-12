@@ -7,6 +7,7 @@ import {
   Param,
   Query,
   Req,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { NeedLogin, Can } from '@server/common/auth/decorators';
 import type { Request } from 'express';
@@ -44,7 +45,7 @@ export class ModelController {
   @NeedLogin()
   @Can('tryout', 'Model')
   @Post(':id/tryout')
-  async tryout(@Param('id') id: string, @Body() body: { params: Record<string, string | number> }) {
+  async tryout(@Param('id', new ParseUUIDPipe()) id: string, @Body() body: { params: Record<string, string | number> }) {
     return this.modelService.tryout(id, body.params);
   }
 
@@ -58,7 +59,7 @@ export class ModelController {
   @NeedLogin()
   @Can('publish', 'Model')
   @Post(':id/publish')
-  async publish(@Req() req: Request, @Param('id') id: string) {
+  async publish(@Req() req: Request, @Param('id', new ParseUUIDPipe()) id: string) {
     const { userId } = req.userContext;
     return this.modelService.publish(userId, id);
   }
@@ -66,13 +67,13 @@ export class ModelController {
   @NeedLogin()
   @Can('update', 'Model')
   @Delete(':id')
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.modelService.delete(id);
   }
 
   @Get(':id/versions')
   async getVersions(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ) {

@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   Query,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { NeedLogin, Can } from '@server/common/auth/decorators';
 import type { Request } from 'express';
@@ -44,7 +45,7 @@ export class AgentController {
   }
 
   @Get('sessions/:id')
-  async getSession(@Param('id') id: string) {
+  async getSession(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.agentService.getSession(id);
   }
 
@@ -53,7 +54,7 @@ export class AgentController {
   @Post('sessions/:id/messages')
   async sendMessage(
     @Req() req: Request,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: SendAgentMessageRequest,
   ) {
     const { userId } = req.userContext;
@@ -65,8 +66,8 @@ export class AgentController {
   @Post('sessions/:id/actions/:messageId/confirm')
   async confirmAction(
     @Req() req: Request,
-    @Param('id') id: string,
-    @Param('messageId') messageId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('messageId', new ParseUUIDPipe()) messageId: string,
   ) {
     const { userId } = req.userContext;
     return this.agentService.confirmAction(userId, id, messageId);
@@ -77,20 +78,20 @@ export class AgentController {
   @Post('sessions/:id/actions/:messageId/reject')
   async rejectAction(
     @Req() req: Request,
-    @Param('id') id: string,
-    @Param('messageId') messageId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('messageId', new ParseUUIDPipe()) messageId: string,
   ) {
     const { userId } = req.userContext;
     return this.agentService.rejectAction(userId, id, messageId);
   }
 
   @Get('sessions/:id/context')
-  async getContext(@Param('id') id: string) {
+  async getContext(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.agentService.getContext(id);
   }
 
   @Get('sessions/:id/task-status')
-  async getTaskStatus(@Param('id') id: string) {
+  async getTaskStatus(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.agentService.getTaskStatusForSession(id);
   }
 
@@ -99,7 +100,7 @@ export class AgentController {
   @Post('sessions/:id/chat')
   async chatWithAgent(
     @Req() req: Request,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: AgentChatRequest,
   ) {
     const { userId } = req.userContext;
@@ -111,7 +112,7 @@ export class AgentController {
   @Delete('sessions/:id')
   async deleteSession(
     @Req() req: Request,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     const { userId } = req.userContext;
     return this.agentService.deleteSession(userId, id);

@@ -6,6 +6,8 @@ import {
   Query,
   Body,
   Req,
+  ParseUUIDPipe,
+  NotFoundException,
 } from '@nestjs/common';
 import { NeedLogin, Can } from '@server/common/auth/decorators';
 import type { Request } from 'express';
@@ -34,13 +36,17 @@ export class EstimateTaskController {
   }
 
   @Get(':id')
-  async getTask(@Param('id') id: string) {
-    return this.estimateTaskService.getTask(id);
+  async getTask(@Param('id', new ParseUUIDPipe()) id: string) {
+    const task = await this.estimateTaskService.getTask(id);
+    if (!task) {
+      throw new NotFoundException('测算任务不存在');
+    }
+    return task;
   }
 
   @Get(':id/items')
   async getTaskItems(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
     @Query('filter') filter?: string,

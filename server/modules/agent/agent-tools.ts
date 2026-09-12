@@ -12,6 +12,13 @@ import type { EstimateTaskRow } from '@shared/api.interface';
 import type { WeldingEquipmentParamExtractOneOutput } from '@shared/plugin-types';
 import { callCapabilityWithTimeout } from '@server/common/utils/plugin-call';
 
+function formatDateInChina(value: Date | string | number | null | undefined): string {
+  if (value == null) return '';
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('sv', { timeZone: 'Asia/Shanghai' });
+}
+
 export interface ToolContext {
   db: any;
   capabilityService: LocalCapabilityService;
@@ -176,7 +183,7 @@ async function searchContracts(
     line_type: r.line_type ?? '',
     price: parseFloat(r.unit_price ?? '0'),
     project_id: r.project ?? '',
-    settle_date: r.settle_date instanceof Date ? r.settle_date.toISOString().slice(0, 10) : String(r.settle_date ?? ''),
+    settle_date: formatDateInChina(r.settle_date),
   }));
 
   return { success: true, data: { count: items.length, items } };

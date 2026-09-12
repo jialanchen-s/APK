@@ -1,6 +1,7 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { DRIZZLE_DATABASE } from '@server/common/database/database.module';
-import { eq, and, count, desc, like, or, inArray, ne } from 'drizzle-orm';
+import { FileStorageService } from '@server/common/file/file-storage.service';
+import { eq, and, count, desc, like, or, inArray, ne, sql } from 'drizzle-orm';
 import {
   estimateTask as estimateTasks,
   pendingItem as pendingItems,
@@ -74,7 +75,6 @@ interface ContractMatchResult {
 @Injectable()
 export class EstimateTaskService {
   private readonly logger = new Logger(EstimateTaskService.name);
-  private readonly resultsStore = new Map<string, RowResult[]>();
   private readonly aiParamsCache = new Map<string, Record<string, string | number>>();
 
   private tableFor(domain: ArchiveDomain = 'welding') {
@@ -98,7 +98,18 @@ export class EstimateTaskService {
     @Inject(DRIZZLE_DATABASE) private readonly db: any,
     private readonly modelService: ModelService,
     private readonly aiGateway: AIGatewayService,
+    private readonly fileService: FileStorageService,
   ) {}
+
+  private async loadRowResults(taskId: string): Promise<RowResult[]> {
+    const rows = await this.db
+      .select({ rowResults: estimateTasks.rowResults })
+      .from(estimateTasks)
+      .where(eq(estimateTasks.id, taskId))
+      .limit(1);
+    if (rows.length === 0 || !rows[0].rowResults) return [];
+    return rows[0].rowResults as RowResult[];
+  }
 
   async createTask(
     userId: string,
@@ -220,7 +231,10 @@ export class EstimateTaskService {
       .where(eq(estimateTasks.id, taskId));
 
     // 5. 存储完整结果供导出使用
-    this.resultsStore.set(taskId, rowResults);
+    await this.db
+      .update(estimateTasks)
+      .set({ rowResults: sql`${JSON.stringify(rowResults)}::jsonb` })
+      .where(eq(estimateTasks.id, taskId));
     this.aiParamsCache.clear();
 
     // 6. 异步执行异常检测（不阻塞主流程）
@@ -859,8 +873,8 @@ export class EstimateTaskService {
     modifyLevel: string,
     updates: Partial<RowResult>,
   ): Promise<void> {
-    const results = this.resultsStore.get(taskId);
-    if (!results) return;
+    const results = await this.loadRowResults(taskId);
+    if (!results.length) return;
     for (let i = 0; i < results.length; i++) {
       if (results[i].device_name === deviceName &&
           results[i].modify_level === modifyLevel &&
@@ -869,6 +883,10 @@ export class EstimateTaskService {
         break;
       }
     }
+    await this.db
+      .update(estimateTasks)
+      .set({ rowResults: sql`${JSON.stringify(results)}::jsonb` })
+      .where(eq(estimateTasks.id, taskId));
   }
 
   private async tryModelCalculation(
@@ -1133,7 +1151,7 @@ export class EstimateTaskService {
       `getTaskItems: id=${id}, page=${page}, pageSize=${pageSize}, filter=${filter}`,
     );
 
-    const allResults = this.resultsStore.get(id) || [];
+    const allResults = await this.loadRowResults(id);
 
     let filtered: RowResult[];
     if (filter === 'all') {
@@ -1178,8 +1196,54 @@ export class EstimateTaskService {
 
   async downloadResult(id: string, type: string): Promise<{ url: string; filename: string }> {
     this.logger.log(`downloadResult: id=${id}, type=${type}`);
-    // TODO: 实现结果文件生成与下载
-    return { url: '', filename: '' };
+    const results = await this.loadRowResults(id);
+    if (results.length === 0) {
+      return { url: '', filename: '' };
+    }
+
+    const XLSX = require('xlsx');
+    const filtered = type === 'anomaly'
+      ? results.filter((r) => r.status === 'success' && r.price > 0)
+      : type === 'pending'
+        ? results.filter((r) => r.status === 'pending')
+        : results;
+
+    const headerMap: Record<string, string> = {
+      device_name: '设备/材料名称', line_type: '线别', quantity: '数量', unit: '单位',
+      usage_scope: '使用范围', supply_type: '供应方式', modify_level: '区分度',
+      copy_mode: '复制模式', price: '单价', total_price: '合价',
+      source: '来源', match_level: '匹配等级', remark: '备注',
+      status: '状态', workstation_no: '工位号', workstation_desc: '工位描述',
+      brand: '品牌', category: '类别', distinction: '区分', spec_remark: '规格备注',
+    };
+
+    const rows = filtered.map((r) => {
+      const row: Record<string, string | number> = {};
+      for (const [key, label] of Object.entries(headerMap)) {
+        const val = (r as any)[key];
+        if (val !== undefined && val !== null && val !== '') {
+          row[label] = val;
+        }
+      }
+      return row;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '测算结果');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+
+    const taskRows = await this.db
+      .select({ fileName: estimateTasks.fileName })
+      .from(estimateTasks)
+      .where(eq(estimateTasks.id, id))
+      .limit(1);
+    const baseName = taskRows[0]?.fileName?.replace(/\.\w+$/, '') || 'result';
+    const fileName = `${baseName}-${type || 'all'}.xlsx`;
+
+    const { filePath } = await this.fileService.upload(buf, { fileName, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = await this.fileService.createSignedUrl(filePath, 3600);
+    return { url: url || '', filename: fileName };
   }
 
   private async runAnomalyDetection(

@@ -210,8 +210,11 @@ export class PendingItemService {
             constants,
           );
           if (result.success && result.result && result.result > 0) {
-            const modifyLevel = String(item.params._modify_level ?? '');
-            const quantity = Number(item.params._quantity) || 1;
+            const filled = (pendingRow.filledValues as Record<string, string | number>) ?? {};
+            const modifyLevel = String(
+              item.params._modify_level ?? item.params.modify_level ?? filled._modify_level ?? '',
+            );
+            const quantity = Number(item.params._quantity ?? filled._quantity) || 1;
             await this.estimateTaskService.updateRowResult(
               taskId,
               pendingRow.deviceName,
@@ -272,36 +275,63 @@ export class PendingItemService {
       name: string; type: string; required: boolean; defaultValue?: string | number;
     }>;
 
-    // 更新选中的 pending_item
-    const result = await this.db
-      .update(pendingItem)
-      .set({
-        modelId: modelId,
-        groupType: 'model_param',
-        params: inputVars.map((v) => {
-          const userVal = paramValues?.[v.name];
-          const value = userVal !== undefined && userVal !== ''
-            ? userVal
-            : (v.defaultValue ?? '');
-          return {
-            name: v.name,
-            type: v.type,
-            required: v.required,
-            value,
-          };
-        }),
-        status: 'pending',
-      })
-      .where(
-        and(
-          eq(pendingItem.taskId, taskId),
-          inArray(pendingItem.id, itemIds),
-          sql`${pendingItem.status} IS DISTINCT FROM 'submitted'`,
-        ),
-      )
-      .returning({ id: pendingItem.id });
+    // 读取待更新项的现有 metadata（_line_type / _modify_level / _quantity），
+    // 避免 applyModel 重建 params 时丢失，导致 submit 里 updateRowResult 的
+    // modify_level 等值匹配失败、价格回写不到成果单。
+    const existingRows = await this.db
+      .select({ id: pendingItem.id, params: pendingItem.params, filledValues: pendingItem.filledValues })
+      .from(pendingItem)
+      .where(and(eq(pendingItem.taskId, taskId), inArray(pendingItem.id, itemIds)));
 
-    const appliedCount = result.length;
+    const metadataByItemId = new Map<string, Record<string, string | number>>();
+    for (const r of existingRows) {
+      const existingParams = (r.params as Array<{ name: string; value?: string | number }>) ?? [];
+      const filled = (r.filledValues as Record<string, string | number>) ?? {};
+      const pick = (name: string) => {
+        const fromParams = existingParams.find((p) => p.name === name)?.value;
+        if (fromParams !== undefined && fromParams !== '') return fromParams;
+        const fromFilled = filled[name];
+        if (fromFilled !== undefined && fromFilled !== '') return fromFilled;
+        return '';
+      };
+      metadataByItemId.set(r.id, {
+        _line_type: pick('_line_type'),
+        _modify_level: pick('_modify_level'),
+        _quantity: pick('_quantity'),
+      });
+    }
+
+    // 更新选中的 pending_item：按项合并「模型参数 + 保留的 metadata」
+    let appliedCount = 0;
+    for (const r of existingRows) {
+      const meta = metadataByItemId.get(r.id) ?? {};
+      const modelEntries = inputVars.map((v) => {
+        const userVal = paramValues?.[v.name];
+        const value = userVal !== undefined && userVal !== ''
+          ? userVal
+          : (v.defaultValue ?? '');
+        return {
+          name: v.name,
+          type: v.type,
+          required: v.required,
+          value,
+        };
+      });
+      const metaEntries = Object.entries(meta)
+        .filter(([, v]) => v !== '' && v !== undefined)
+        .map(([name, value]) => ({ name, type: 'string', required: false, value }));
+      await this.db
+        .update(pendingItem)
+        .set({
+          modelId: modelId,
+          groupType: 'model_param',
+          params: [...modelEntries, ...metaEntries],
+          status: 'pending',
+        })
+        .where(eq(pendingItem.id, r.id));
+      appliedCount++;
+    }
+
     this.logger.log(`applyModel完成: 成功应用${appliedCount}项`);
 
     return { success: true, appliedCount };

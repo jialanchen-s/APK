@@ -8,8 +8,8 @@ import {
 import { DRIZZLE_DATABASE } from '@server/common/database/database.module';
 import { LocalCapabilityService } from '@server/common/capability/local-capability.service';
 import { FileStorageService } from '@server/common/file/file-storage.service';
-import { contract, manufacturingContract, paintingContract, stampingContract } from '@server/database/schema';
-import { eq, inArray, lt, sql, and } from 'drizzle-orm';
+import { contract, manufacturingContract, paintingContract, stampingContract, archiveLog, previewStore } from '@server/database/schema';
+import { eq, inArray, lt, sql, and, desc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import type { FileParseTextOneOutput } from '@shared/plugin-types';
 import {
@@ -70,11 +70,16 @@ interface ArchiveLogEntry {
   domain?: ArchiveDomain;
 }
 
+function formatDateInChina(value: Date | string | number | null | undefined): string {
+  if (value == null) return '';
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('sv', { timeZone: 'Asia/Shanghai' });
+}
+
 @Injectable()
 export class ContractService {
   private readonly logger = new Logger(ContractService.name);
-  private readonly previewStore = new Map<string, StoredPreview>();
-  private readonly archiveLogStore: ArchiveLogEntry[] = [];
 
   private static resolveDomain(domain: ArchiveDomain | undefined): ArchiveDomain {
     return ARCHIVE_DOMAIN_VALUES.includes(domain as ArchiveDomain) ? (domain as ArchiveDomain) : 'welding';
@@ -98,6 +103,17 @@ export class ContractService {
     @Inject() private readonly capabilityService: LocalCapabilityService,
     private readonly fileService: FileStorageService,
   ) {}
+
+  private async loadPreview(previewId: string): Promise<StoredPreview | null> {
+    const rows = await this.db
+      .select()
+      .from(previewStore)
+      .where(eq(previewStore.previewId, previewId))
+      .limit(1);
+    if (rows.length === 0) return null;
+    const r = rows[0];
+    return { domain: r.domain as ArchiveDomain, items: r.items as StoredPreviewItem[], createdAt: r.createdAt };
+  }
 
   async parseContract(
     userId: string,
@@ -160,8 +176,14 @@ export class ContractService {
       },
     );
 
-    this.previewStore.set(previewId, { domain, items, createdAt: Date.now() });
-    this.purgeExpiredPreviews();
+    await this.db
+      .insert(previewStore)
+      .values({ previewId, domain, items: sql`${JSON.stringify(items)}::jsonb`, createdAt: Date.now() })
+      .onConflictDoUpdate({
+        target: previewStore.previewId,
+        set: { items: sql`${JSON.stringify(items)}::jsonb`, createdAt: Date.now(), domain },
+      });
+    this.purgeExpiredPreviews().catch(() => {});
 
     const validCount = items.filter((i) => i.status === 'valid').length;
 
@@ -181,7 +203,7 @@ export class ContractService {
     this.logger.log(
       `getPreview: previewId=${previewId}, page=${page}, pageSize=${pageSize}`,
     );
-    const stored = this.previewStore.get(previewId);
+    const stored = await this.loadPreview(previewId);
     const items = stored?.items ?? [];
     const start = (page - 1) * pageSize;
     const paged = items.slice(start, start + pageSize);
@@ -211,7 +233,7 @@ export class ContractService {
         `projectName=${projectName ?? '-'}, settleDate=${settleDate ?? '-'}, lineType=${lineType ?? '-'}, ` +
         `projectTime=${projectTime ?? '-'}, factoryName=${factoryName ?? '-'}`,
     );
-    const stored = this.previewStore.get(previewId);
+    const stored = await this.loadPreview(previewId);
     const domain = stored?.domain ?? 'welding';
     let items = stored?.items ?? [];
     const toArchive = items.filter(
@@ -306,9 +328,9 @@ export class ContractService {
       batch_id: batchId,
       batch_name: finalBatchName,
       domain,
-    });
+    }).catch(() => {});
 
-    this.previewStore.delete(previewId);
+    await this.db.delete(previewStore).where(eq(previewStore.previewId, previewId));
 
     return { success: true, archivedCount: toArchive.length, batchId: String(batchId), batchName: finalBatchName };
   }
@@ -407,7 +429,7 @@ export class ContractService {
       price_caliber: (r.priceCaliber || '未税') as PriceCaliber,
       supply: (r.supply || undefined) as SupplyType | undefined,
       unit: r.unit || undefined,
-      settle_date: r.settleDate ? new Date(r.settleDate).toISOString().slice(0, 10) : '',
+      settle_date: formatDateInChina(r.settleDate),
       quantity: r.quantity != null ? parseFloat(String(r.quantity)) : undefined,
       selected_brand: r.selectedBrand || undefined,
       subtotal: r.subtotal != null ? parseFloat(String(r.subtotal)) : undefined,
@@ -475,7 +497,7 @@ export class ContractService {
   private generateBatchName(items: StoredPreviewItem[], domain: ArchiveDomain): string {
     if (items.length === 0) return '未命名批次';
     const firstItem = items[0];
-    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const dateStr = formatDateInChina(new Date()).replace(/-/g, '');
     const hasLineType = 'line_type' in firstItem;
     const lineType = hasLineType ? firstItem.line_type || '未知线别' : ARCHIVE_DOMAIN_LABELS[domain];
     const projectSet = new Set(items.map((i) => i.project).filter(Boolean));
@@ -491,10 +513,20 @@ export class ContractService {
   async getArchiveLogs(limit: number, domain?: ArchiveDomain): Promise<ContractArchiveLogsResponse> {
     this.logger.log(`getArchiveLogs: limit=${limit}, domain=${domain ?? 'welding'}`);
     const d = ContractService.resolveDomain(domain);
-    const logs: ContractArchiveLog[] = this.archiveLogStore
-      .filter((entry) => (entry.domain ?? 'welding') === d)
-      .slice(-limit)
-      .reverse();
+    const rows = await this.db
+      .select()
+      .from(archiveLog)
+      .where(eq(archiveLog.domain, d))
+      .orderBy(desc(archiveLog.id))
+      .limit(limit);
+    const logs: ContractArchiveLog[] = rows.map((r: any) => ({
+      operator: r.operator,
+      operate_time: r.operateTime,
+      count: r.count,
+      batch_id: r.batchId ?? undefined,
+      batch_name: r.batchName ?? undefined,
+      domain: r.domain ?? undefined,
+    }));
     return { logs };
   }
 
@@ -522,7 +554,7 @@ export class ContractService {
       operator: userName || userId,
       operate_time: new Date().toISOString(),
       count: -result.length,
-    });
+    }).catch(() => {});
 
     return { success: true, deletedCount: result.length };
   }
@@ -662,7 +694,7 @@ export class ContractService {
         operate_time: new Date().toISOString(),
         count: -result.length,
         batch_name: batchName || batchId,
-      });
+      }).catch(() => {});
     }
 
     return { success: true, deletedCount: result.length, batchName };
@@ -694,7 +726,7 @@ export class ContractService {
         operate_time: new Date().toISOString(),
         count: -result.length,
         batch_name: `手动清理驳回数据（${ARCHIVE_DOMAIN_LABELS[d]}）`,
-      });
+      }).catch(() => {});
     }
 
     return {
@@ -915,23 +947,22 @@ export class ContractService {
   private static readonly PREVIEW_TTL_MS = 24 * 60 * 60 * 1000;
   private static readonly ARCHIVE_LOG_MAX = 500;
 
-  private appendArchiveLog(entry: ArchiveLogEntry): void {
-    this.archiveLogStore.push(entry);
-    if (this.archiveLogStore.length > ContractService.ARCHIVE_LOG_MAX) {
-      this.archiveLogStore.splice(
-        0,
-        this.archiveLogStore.length - ContractService.ARCHIVE_LOG_MAX,
-      );
-    }
+  private async appendArchiveLog(entry: ArchiveLogEntry): Promise<void> {
+    await this.db
+      .insert(archiveLog)
+      .values({
+        operator: entry.operator,
+        operateTime: entry.operate_time,
+        count: entry.count,
+        batchId: entry.batch_id ?? undefined,
+        batchName: entry.batch_name ?? undefined,
+        domain: entry.domain ?? undefined,
+      });
   }
 
-  private purgeExpiredPreviews(): void {
-    const now = Date.now();
-    for (const [id, preview] of this.previewStore) {
-      if (now - preview.createdAt > ContractService.PREVIEW_TTL_MS) {
-        this.previewStore.delete(id);
-      }
-    }
+  private async purgeExpiredPreviews(): Promise<void> {
+    const cutoff = Date.now() - ContractService.PREVIEW_TTL_MS;
+    await this.db.delete(previewStore).where(lt(previewStore.createdAt, cutoff));
   }
 
   private static sliceExtractText(content: string): string[] {

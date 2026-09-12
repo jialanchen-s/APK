@@ -366,6 +366,7 @@ export const estimateTask = pgTable("estimate_task", {
   mainResultUrl: text("main_result_url"),
   unknownResultUrl: text("unknown_result_url"),
   domain: varchar("domain", { length: 50 }).notNull().default('welding'),
+  rowResults: jsonb("row_results"),
   // System field: Creation time (auto-filled, do not modify)
   createdAt: customTimestamptz("_created_at", { precision: 3 }).notNull().default(sql`CURRENT_TIMESTAMP`),
   // System field: Creator (auto-filled, do not modify)
@@ -492,9 +493,27 @@ export const authzPermissions = pgTable("authz_permissions", {
   uniqueIndex("authz_permissions_action_subject_key").on(table.action, table.subject),
 ]);
 
+export const archiveLog = pgTable("archive_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  operator: varchar("operator", { length: 255 }).notNull(),
+  operateTime: varchar("operate_time", { length: 50 }).notNull(),
+  count: integer("count").notNull().default(0),
+  batchId: uuid("batch_id"),
+  batchName: varchar("batch_name", { length: 255 }),
+  domain: varchar("domain", { length: 50 }),
+});
+
+export const previewStore = pgTable("preview_store", {
+  previewId: varchar("preview_id", { length: 255 }).primaryKey(),
+  domain: varchar("domain", { length: 50 }).notNull().default('welding'),
+  items: jsonb("items").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+
 // table aliases
 export const agentMessageTable = agentMessage;
 export const agentSessionTable = agentSession;
+export const archiveLogTable = archiveLog;
 export const authzPermissionsTable = authzPermissions;
 export const authzRolePermissionsTable = authzRolePermissions;
 export const contractTable = contract;
@@ -503,5 +522,6 @@ export const manufacturingContractTable = manufacturingContract;
 export const modelTable = model;
 export const paintingContractTable = paintingContract;
 export const pendingItemTable = pendingItem;
+export const previewStoreTable = previewStore;
 export const stampingContractTable = stampingContract;
 export const unitStdTable = unitStd;
