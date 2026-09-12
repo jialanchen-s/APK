@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
 @Injectable()
 export class FileStorageService {
+  private readonly logger = new Logger(FileStorageService.name);
   private readonly uploadDir = path.join(process.cwd(), 'uploads');
 
   async upload(content: Buffer, options: { fileName: string; contentType?: string }) {
@@ -37,7 +38,7 @@ export class FileStorageService {
   async remove(filePaths: string[]) {
     for (const fp of filePaths) {
       const fullPath = path.join(this.uploadDir, fp);
-      await fs.unlink(fullPath).catch(() => {});
+      await fs.unlink(fullPath).catch((err) => this.logger.warn(`删除文件失败: ${fp}`, err));
     }
   }
 }
