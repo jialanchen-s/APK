@@ -1,7 +1,7 @@
-const { stylelintPresetsOfSimple } = require('@lark-apaas/fullstack-presets');
-
 module.exports = {
-  extends: [ stylelintPresetsOfSimple ],
+  rules: {
+    'declaration-block-no-duplicate-custom-properties': true,
+  },
   ignoreFiles: [
     'node_modules/**',
     'dist/**',
