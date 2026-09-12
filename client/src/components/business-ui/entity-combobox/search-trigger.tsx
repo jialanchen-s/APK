@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronDown, ChevronUp, CircleX, X } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 import { useEntityComboboxContext } from '@client/src/components/business-ui/entity-combobox/context';
 import {
@@ -74,6 +75,73 @@ export const SearchTrigger = ({
 
   const selectedArray = Array.isArray(selectedValue) ? selectedValue : [];
 
+  // Responsive 模式相关状态
+  const containerRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [responsiveCount, setResponsiveCount] = useState<number>(selectedArray.length);
+
+  // 测量标签宽度并计算可显示数量
+  const calculateVisibleCount = useCallback(() => {
+    if (!multiple || maxTagCount !== 'responsive' || selectedArray.length === 0) {
+      setResponsiveCount(selectedArray.length);
+      return;
+    }
+
+    const container = containerRef.current;
+    const measure = measureRef.current;
+    if (!container || !measure) {
+      setResponsiveCount(selectedArray.length);
+      return;
+    }
+
+    const containerWidth = container.offsetWidth;
+    // 预留空间给清除按钮和后缀图标（约 60px）
+    const availableWidth = containerWidth - 60;
+
+    // 测量每个标签的宽度
+    const tags = measure.querySelectorAll('[data-measure-tag]');
+    let totalWidth = 0;
+    let visibleCount = 0;
+    const gap = 4; // gap-1 = 0.25rem = 4px
+
+    for (let i = 0; i < tags.length; i++) {
+      const tagWidth = (tags[i] as HTMLElement).offsetWidth;
+      const newTotal = totalWidth + (i > 0 ? gap : 0) + tagWidth;
+      if (newTotal > availableWidth && visibleCount > 0) {
+        break;
+      }
+      totalWidth = newTotal;
+      visibleCount = i + 1;
+    }
+
+    setResponsiveCount(visibleCount);
+  }, [multiple, maxTagCount, selectedArray.length]);
+
+  // 监听容器尺寸变化
+  useEffect(() => {
+    if (maxTagCount !== 'responsive' || !multiple) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    // 初始计算
+    calculateVisibleCount();
+
+    const resizeObserver = new ResizeObserver(() => {
+      calculateVisibleCount();
+    });
+
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, [maxTagCount, multiple, calculateVisibleCount]);
+
+  // 选中值变化时重新计算
+  useEffect(() => {
+    if (maxTagCount === 'responsive') {
+      calculateVisibleCount();
+    }
+  }, [selectedArray.length, maxTagCount, calculateVisibleCount]);
+
   // 计算显示的标签
   const getDisplayTags = () => {
     if (!multiple) return [];
@@ -82,19 +150,24 @@ export const SearchTrigger = ({
       return selectedArray.slice(0, maxTagCount);
     }
 
-    // TODO: responsive 模式需要根据容器宽度计算
+    if (maxTagCount === 'responsive') {
+      return selectedArray.slice(0, responsiveCount);
+    }
+
     return selectedArray;
   };
 
   const displayTags = getDisplayTags();
+  const effectiveMaxCount =
+    maxTagCount === 'responsive' ? responsiveCount : typeof maxTagCount === 'number' ? maxTagCount : null;
   const hiddenCount =
-    multiple && typeof maxTagCount === 'number'
-      ? Math.max(0, selectedArray.length - maxTagCount)
+    multiple && effectiveMaxCount !== null
+      ? Math.max(0, selectedArray.length - effectiveMaxCount)
       : 0;
 
   const hiddenTags =
-    multiple && typeof maxTagCount === 'number'
-      ? selectedArray.slice(maxTagCount)
+    multiple && effectiveMaxCount !== null
+      ? selectedArray.slice(effectiveMaxCount)
       : [];
 
   const handleTagClose = (value: ItemValue, e: React.MouseEvent) => {
@@ -120,9 +193,22 @@ export const SearchTrigger = ({
       ? selectedValue.name
       : '';
 
+  // 合并外部 ref 和内部 containerRef
+  const setRefs = useCallback(
+    (node: HTMLDivElement | null) => {
+      (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      if (typeof ref === 'function') {
+        ref(node);
+      } else if (ref) {
+        (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      }
+    },
+    [ref],
+  );
+
   return (
     <div
-      ref={ref}
+      ref={setRefs}
       tabIndex={disabled ? -1 : 0}
       role="combobox"
       aria-expanded={open}
@@ -257,6 +343,34 @@ export const SearchTrigger = ({
           <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
         )}
       </div>
+
+      {/* 隐藏的测量容器，用于计算 responsive 模式下标签宽度 */}
+      {multiple && maxTagCount === 'responsive' && selectedArray.length > 0 && (
+        <div
+          ref={measureRef}
+          aria-hidden="true"
+          className="pointer-events-none invisible absolute left-0 top-0 flex flex-wrap gap-1"
+          style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}
+        >
+          {selectedArray.map((value) =>
+            renderTag ? (
+              <div key={value.id} data-measure-tag>
+                {renderTag(value, () => {}, getOptionDisabled?.(value))}
+              </div>
+            ) : (
+              <Badge
+                key={value.id}
+                data-measure-tag
+                variant="secondary"
+                className={searchTagVariants({ size })}
+              >
+                <span>{truncateText(value.name)}</span>
+                {tagClosable && <X className={tagCloseIconVariants({ size })} />}
+              </Badge>
+            ),
+          )}
+        </div>
+      )}
     </div>
   );
 };
