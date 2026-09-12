@@ -56,7 +56,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/role-management', label: '权限管理', icon: Shield, permission: { action: 'manage', subject: 'Permission' } },
 ];
 
-const GUEST_AVATAR = 'https://lf3-static.bytednsdoc.com/obj/eden-cn/LMfspH/ljhwZthlaukjlkulzlp/miao/no-person.svg';
+const GUEST_AVATAR = '/images/avatar/no-person.svg';
 
 const LayoutContent = () => {
   const location = useLocation();

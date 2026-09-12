@@ -199,7 +199,7 @@ function UserProfile(props: UserProfileProps) {
 
   // 按需注入飞书 H5 JS SDK，仅在组件使用时加载
   const larkSdkURl =
-    'https://lf3-cdn-tos.bytegoofy.com/obj/goofy/locl/lark/external_js_sdk/h5-js-sdk-1.2.21.js';
+    '/js/h5-js-sdk-1.2.21.js';
   const scriptOptions = useMemo(
     () => ({ onloadCallback: onAuthError }),
     [onAuthError],
