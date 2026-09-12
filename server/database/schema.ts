@@ -493,6 +493,15 @@ export const authzPermissions = pgTable("authz_permissions", {
   uniqueIndex("authz_permissions_action_subject_key").on(table.action, table.subject),
 ]);
 
+export const authzRoles = pgTable("authz_roles", {
+  bizID: varchar("biz_id", { length: 255 }).primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  roleMembers: jsonb("role_members"),
+  createdAt: customTimestamptz("_created_at", { precision: 3 }).notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: customTimestamptz("_updated_at", { precision: 3 }).notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const archiveLog = pgTable("archive_log", {
   id: uuid("id").primaryKey().defaultRandom(),
   operator: varchar("operator", { length: 255 }).notNull(),
@@ -516,6 +525,7 @@ export const agentSessionTable = agentSession;
 export const archiveLogTable = archiveLog;
 export const authzPermissionsTable = authzPermissions;
 export const authzRolePermissionsTable = authzRolePermissions;
+export const authzRolesTable = authzRoles;
 export const contractTable = contract;
 export const estimateTaskTable = estimateTask;
 export const manufacturingContractTable = manufacturingContract;

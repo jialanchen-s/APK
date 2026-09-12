@@ -161,7 +161,7 @@ const EstimateWorkbench = () => {
           </div>
           <div>
             <h1 className="text-lg font-bold tracking-tight text-foreground">
-              测算工作台
+              制造费用智能测算系统
             </h1>
             <p className="text-sm text-muted-foreground">
               上传预算清单，自动瀑布流寻价与智能测算

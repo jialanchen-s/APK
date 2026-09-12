@@ -4,7 +4,7 @@ import type { OpenAIConfig } from './openai-adapter';
 import type { GenericOpenAICompatibleConfig } from './generic-openai-compatible-adapter';
 
 export interface AIProviderEnv {
-  AI_DEFAULT_PROVIDER?: 'deepseek' | 'openai' | 'apaas-plugin' | 'custom';
+  AI_DEFAULT_PROVIDER?: 'deepseek' | 'openai' | 'apaas-plugin' | 'custom' | 'mock';
   AI_FALLBACK_CHAIN?: string;
 
   DEEPSEEK_API_KEY?: string;

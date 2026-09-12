@@ -47,7 +47,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { path: '/', label: '测算工作台', icon: Calculator, permission: { action: 'create', subject: 'EstimateTask' } },
+  { path: '/', label: '制造费用智能测算系统', icon: Calculator, permission: { action: 'create', subject: 'EstimateTask' } },
   { path: '/batch-fill', label: '批量参数填报', icon: ListChecks, permission: { action: 'update', subject: 'PendingItem' } },
   { path: '/contract-archive', label: '历史合同归档', icon: Archive, permission: { action: 'read', subject: 'ContractArchive' } },
   { path: '/price-query', label: '历史价格快查', icon: Search, permission: { action: 'read', subject: 'PriceQuery' } },
@@ -75,7 +75,7 @@ const LayoutContent = () => {
   const displayAvatar = isLoggedIn ? userInfo.avatar : GUEST_AVATAR;
 
   const activeItem = visibleNavItems.find((item) => item.path === pathname);
-  const activeTitle = activeItem?.label ?? '焊装费用测算系统';
+  const activeTitle = activeItem?.label ?? '制造费用智能测算系统';
 
   const handleLogout = useCallback(async () => {
     setShowLogoutConfirm(false);
@@ -115,7 +115,7 @@ const LayoutContent = () => {
                     </div>
                     <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                       <span className="truncate font-bold tracking-tight text-foreground">
-                        {appName || '焊装费用测算系统'}
+                        {appName || '制造费用智能测算系统'}
                       </span>
                       <span className="truncate text-xs text-muted-foreground">成本工程工具</span>
                     </div>

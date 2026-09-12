@@ -1,7 +1,7 @@
 export function useAppInfo() {
   return {
     appId: 'local-dev',
-    appName: '焊装费用智能测算系统',
+    appName: '制造费用智能测算系统',
     env: 'development' as const,
   };
 }
