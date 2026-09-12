@@ -203,11 +203,5 @@
     "prepare": "chmod +x .githooks/pre-commit 2>/dev/null; git config core.hooksPath .githooks 2>/dev/null || true",
     "precommit": "node scripts/hooks/run-precommit.js"
   },
-  "version": "2.2.6",
-  "actionPlugins": {
-    "@official-plugins/ai-text-to-json": "1.0.26",
-    "@official-plugins/ai-doc-parser": "1.0.16",
-    "@official-plugins/ai-text-generate": "1.0.21",
-    "@official-plugins/ai-image-understanding": "1.0.22"
-  }
+  "version": "2.2.6"
 }

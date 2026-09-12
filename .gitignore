@@ -67,3 +67,6 @@ pnpm-lock.yaml
 .agent/
 .agent-memory/
 .npm_cache
+
+# User uploads
+uploads/
