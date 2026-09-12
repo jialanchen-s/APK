@@ -190,7 +190,6 @@
     "eslint": "eslint . --quiet",
     "format": "prettier --write \"{server,client,test}/**/*.{js,ts,tsx,json,md}\"",
     "gen:db-schema": "echo 'Schema is at server/database/schema.ts; use drizzle-kit introspect to sync from DB'",
-    "gen:openapi": "echo 'UNSUPPORTED, SKIP'",
     "lint": "node ./scripts/lint.js",
     "start": "cross-env NODE_ENV=production node main.js",
     "stylelint": "stylelint client/src/**/*.css --quiet",
