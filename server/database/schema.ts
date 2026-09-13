@@ -519,9 +519,19 @@ export const previewStore = pgTable("preview_store", {
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
 
+export const appSettings = pgTable("app_settings", {
+  key: varchar("key", { length: 255 }).primaryKey(),
+  value: jsonb("value").notNull(),
+  // System field: Update time (auto-filled, do not modify)
+  updatedAt: customTimestamptz("_updated_at", { precision: 3 }).notNull().default(sql`CURRENT_TIMESTAMP`),
+  // System field: Updater (auto-filled, do not modify)
+  updatedBy: userProfile("_updated_by"),
+});
+
 // table aliases
 export const agentMessageTable = agentMessage;
 export const agentSessionTable = agentSession;
+export const appSettingsTable = appSettings;
 export const archiveLogTable = archiveLog;
 export const authzPermissionsTable = authzPermissions;
 export const authzRolePermissionsTable = authzRolePermissions;

@@ -31,7 +31,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Calculator, ListChecks, Archive, Boxes, Bot, Search, Shield, LogOut } from 'lucide-react';
+import { Calculator, ListChecks, Archive, Boxes, Bot, Search, Shield, LogOut, Settings } from 'lucide-react';
 import { useAppInfo } from '@client/src/common/platform/app-info';
 import { useCurrentUserProfile } from '@client/src/common/platform/auth';
 import { getDataloom } from '@client/src/common/platform/dataloom';
@@ -54,6 +54,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/model-studio', label: '建模台', icon: Boxes, permission: { action: 'read', subject: 'Model' } },
   { path: '/agent', label: 'AI核算助手', icon: Bot, permission: { action: 'use', subject: 'Agent' } },
   { path: '/role-management', label: '权限管理', icon: Shield, permission: { action: 'manage', subject: 'Permission' } },
+  { path: '/settings', label: '系统设置', icon: Settings, permission: { action: 'manage', subject: 'Permission' } },
 ];
 
 const GUEST_AVATAR = '/images/avatar/no-person.svg';

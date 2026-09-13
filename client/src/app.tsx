@@ -10,6 +10,7 @@ import PriceQuery from './pages/PriceQuery/PriceQuery';
 import ModelStudio from './pages/ModelStudio/ModelStudio';
 import AgentChat from './pages/AgentChat/AgentChat';
 import RoleManagementPage from './pages/RoleManagementPage/RoleManagementPage';
+import SettingsPage from './pages/Settings/Settings';
 import NotFound from './pages/NotFound/NotFound';
 
 const RoutesComponent = () => {
@@ -23,6 +24,7 @@ const RoutesComponent = () => {
         <Route path="model-studio" element={<ProtectedRoute requiredPermissions={[{ action: 'read', subject: 'Model' }]}><ModelStudio /></ProtectedRoute>} />
         <Route path="agent" element={<ProtectedRoute requiredPermissions={[{ action: 'use', subject: 'Agent' }]}><AgentChat /></ProtectedRoute>} />
         <Route path="role-management" element={<ProtectedRoute requiredPermissions={[{ action: 'manage', subject: 'Permission' }]}><RoleManagementPage /></ProtectedRoute>} />
+        <Route path="settings" element={<ProtectedRoute requiredPermissions={[{ action: 'manage', subject: 'Permission' }]}><SettingsPage /></ProtectedRoute>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

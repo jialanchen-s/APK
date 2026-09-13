@@ -5,3 +5,4 @@ export * as modelApi from './model';
 export * as agentApi from './agent';
 export * as permissionApi from './permission';
 export * as roleManagerApi from './role-manager';
+export * as settingsApi from './settings';

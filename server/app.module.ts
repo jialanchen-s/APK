@@ -22,6 +22,7 @@ import { AgentModule } from './modules/agent/agent.module';
 import { PriceQueryModule } from './modules/price-query/price-query.module';
 import { ViewModule } from './modules/view/view.module';
 import { AIModule } from './common/ai/ai.module';
+import { SettingsModule } from './modules/settings/settings.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { AIModule } from './common/ai/ai.module';
     ModelModule,
     AgentModule,
     PriceQueryModule,
+    SettingsModule,
     // ====== @route-section: business-modules END ======
     ViewModule,
   ],
