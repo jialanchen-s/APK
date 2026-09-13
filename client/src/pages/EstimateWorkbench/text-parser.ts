@@ -1,4 +1,5 @@
 import { capabilityClient } from '@client/src/common/platform/capability-client';
+import { recognizeImage } from '@client/src/api/settings';
 import type {
   EstimateTaskRow,
   LineType,
@@ -45,17 +46,7 @@ function toValid<T extends string>(val: string, valid: T[], defaultVal?: T): T {
   return (defaultVal ?? valid[0]) as T;
 }
 
-const IMAGE_RECOGNITION_PROMPT =
-  '请识别图片中的设备清单信息，包括设备名称、线别、数量、单位、专通用、供货方式、改造等级、复制/镜像，以表格形式输出';
-
 export type FileType = 'excel' | 'document' | 'image';
-
-export function isAsyncIterable(
-  value: unknown,
-): value is AsyncIterable<Record<string, unknown>> {
-  if (!value || typeof value !== 'object') return false;
-  return Symbol.asyncIterator in value;
-}
 
 export function getFileType(file: File): FileType {
   const name = file.name.toLowerCase();
@@ -205,40 +196,16 @@ export async function parseDocumentToText(file: File): Promise<string> {
   return '';
 }
 
-/** 调用 image_content_intelligent_recognition_1 插件（流式）解析图片 → 文本 */
+/** 通过后端 AI Gateway 识别图片内容 → 文本 */
 export async function parseImageToText(file: File): Promise<string> {
-  const result = await capabilityClient
-    .load('image_content_intelligent_recognition_1')
-    .callStream('imageUnderstanding', {
-      modelID: '88',
-      temperature: '0.5',
-      maxTokens: '8192',
-      prompt: IMAGE_RECOGNITION_PROMPT,
-      images: [file],
-    });
-
-  let iterable: AsyncIterable<Record<string, unknown>>;
-  if (isAsyncIterable(result)) {
-    iterable = result;
-  } else if (result && typeof result === 'object') {
-    const output = (result as { output?: unknown }).output;
-    if (isAsyncIterable(output)) {
-      iterable = output;
-    } else {
-      return '';
-    }
-  } else {
-    return '';
+  const arrayBuffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
   }
-
-  let content = '';
-  for await (const chunk of iterable) {
-    const text = chunk.content;
-    if (typeof text === 'string') {
-      content += text;
-    } else if (text !== undefined && text !== null) {
-      content += String(text);
-    }
-  }
-  return content;
+  const imageBase64 = btoa(binary);
+  const mimeType = file.type || 'image/png';
+  const result = await recognizeImage({ imageBase64, mimeType });
+  return result.text;
 }

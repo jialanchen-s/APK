@@ -3,6 +3,7 @@ import { axiosForBackend } from '@client/src/common/platform/axios-instance';
 export interface AIProviderConfig {
   apiKey?: string;
   model?: string;
+  visionModel?: string;
   baseUrl?: string;
   organization?: string;
   name?: string;
@@ -41,6 +42,25 @@ export async function getAIStatus(): Promise<AIStatusResponse> {
   const response = await axiosForBackend({
     url: '/api/settings/ai-config/status',
     method: 'GET',
+  });
+  return response.data;
+}
+
+export interface ImageRecognitionResponse {
+  text: string;
+  model: string;
+  adapter: string;
+}
+
+export async function recognizeImage(params: {
+  imageBase64: string;
+  mimeType: string;
+  prompt?: string;
+}): Promise<ImageRecognitionResponse> {
+  const response = await axiosForBackend({
+    url: '/api/settings/image-recognition',
+    method: 'POST',
+    data: params,
   });
   return response.data;
 }

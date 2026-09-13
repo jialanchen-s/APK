@@ -2,9 +2,21 @@ export type JsonValue = string | number | boolean | null | JsonValue[] | { [key:
 
 export type ChatRole = 'system' | 'user' | 'assistant';
 
+export interface ImageContentPart {
+  type: 'image_url';
+  image_url: { url: string };
+}
+
+export interface TextContentPart {
+  type: 'text';
+  text: string;
+}
+
+export type MessageContent = string | Array<TextContentPart | ImageContentPart>;
+
 export interface ChatMessage {
   role: ChatRole;
-  content: string;
+  content: MessageContent;
 }
 
 export interface LLMChatParams {
@@ -14,6 +26,7 @@ export interface LLMChatParams {
   topP?: number;
   stop?: string[];
   responseFormat?: 'text' | 'json';
+  model?: string;
   signal?: AbortSignal;
 }
 

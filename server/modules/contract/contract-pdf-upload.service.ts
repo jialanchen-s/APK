@@ -22,6 +22,7 @@ import type {
 import type { FileParseTextOneOutput } from '@shared/plugin-types';
 import { serializePluginError } from '@server/common/utils/plugin-call';
 import { ContractService } from './contract.service';
+import { ImageRecognitionService } from '@server/common/ai/image-recognition.service';
 
 type UploadFileKind = 'pdf' | 'image';
 
@@ -83,6 +84,7 @@ export class ContractPdfUploadService {
     @Inject() private readonly capabilityService: LocalCapabilityService,
     private readonly fileService: FileStorageService,
     private readonly contractService: ContractService,
+    private readonly imageRecognitionService: ImageRecognitionService,
   ) {}
 
   async initPdfUploadSession(dto: PdfUploadInitRequest): Promise<PdfUploadInitResponse> {
@@ -278,49 +280,17 @@ export class ContractPdfUploadService {
   }
 
   private async recognizeImageText(fileName: string, content: Buffer): Promise<string> {
-    const uploaded = await this.fileService.upload(content, {
-      fileName,
-      contentType: imageContentType(fileName),
+    const imageBase64 = content.toString('base64');
+    const mimeType = imageContentType(fileName);
+    const result = await this.imageRecognitionService.recognizeImage({
+      imageBase64,
+      mimeType,
+      prompt: IMAGE_RECOGNITION_PROMPT,
+      timeoutMs: ContractPdfUploadService.IMAGE_RECOGNITION_TIMEOUT_MS,
     });
-    try {
-      const signedUrl = await this.fileService.createSignedUrl(uploaded.filePath, 600);
-      if (!signedUrl) {
-        throw new BadRequestException('图片获取下载链接失败，请重试');
-      }
-      const stream = this.capabilityService
-        .load('image_content_intelligent_recognition_1')
-        .callStream('imageUnderstanding', {
-          prompt: IMAGE_RECOGNITION_PROMPT,
-          images: [signedUrl],
-        });
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      try {
-        const text = await Promise.race([
-          this.collectStreamText(stream),
-          new Promise<never>((_, reject) => {
-            timer = setTimeout(() => {
-              reject(new Error('图片识别超时，请重试'));
-            }, ContractPdfUploadService.IMAGE_RECOGNITION_TIMEOUT_MS);
-          }),
-        ]);
-        return text.trim();
-      } finally {
-        if (timer !== undefined) clearTimeout(timer);
-      }
-    } finally {
-      await this.fileService.remove([uploaded.filePath]).catch((err: unknown) => {
-        this.logger.warn(`临时图片清理失败: ${JSON.stringify(err)}`);
-      });
-    }
-  }
-
-  private async collectStreamText(stream: AsyncIterable<unknown>): Promise<string> {
-    let text = '';
-    for await (const chunk of stream) {
-      const content = (chunk as { content?: unknown } | null)?.content;
-      if (typeof content === 'string') {
-        text += content;
-      }
+    const text = result.text.trim();
+    if (!text) {
+      throw new BadRequestException('未从图片中识别出文本内容，请确认图片清晰完整');
     }
     return text;
   }

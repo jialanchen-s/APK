@@ -1,14 +1,16 @@
-import { Controller, Get, Put, Body } from '@nestjs/common';
+import { Controller, Get, Put, Post, Body, BadRequestException } from '@nestjs/common';
 import { NeedLogin } from '@server/common/auth/decorators';
 import { SettingsService } from './settings.service';
 import { AIGatewayService } from '@server/common/ai/ai-gateway.service';
 import { AIConfigService } from './ai-config.service';
+import { ImageRecognitionService } from '@server/common/ai/image-recognition.service';
 
 export const AI_CONFIG_KEY = 'ai_provider_config';
 
 export interface AIProviderConfig {
   apiKey?: string;
   model?: string;
+  visionModel?: string;
   baseUrl?: string;
   organization?: string;
   name?: string;
@@ -30,6 +32,7 @@ export class SettingsController {
     private readonly settingsService: SettingsService,
     private readonly aiConfigService: AIConfigService,
     private readonly gateway: AIGatewayService,
+    private readonly imageRecognitionService: ImageRecognitionService,
   ) {}
 
   @NeedLogin()
@@ -69,5 +72,23 @@ export class SettingsController {
       activeAdapter: defaultAdapter?.name ?? null,
       registeredAdapters: adapters.map((a) => a.name),
     };
+  }
+
+  @NeedLogin()
+  @Post('image-recognition')
+  async recognizeImage(@Body() body: { imageBase64: string; mimeType: string; prompt?: string }) {
+    if (!body.imageBase64 || !body.mimeType) {
+      throw new BadRequestException('imageBase64 和 mimeType 为必填项');
+    }
+    const config = await this.aiConfigService.getConfig();
+    const defaultProvider = config.providers[config.defaultProvider];
+    const visionModel = defaultProvider?.visionModel;
+    const result = await this.imageRecognitionService.recognizeImage({
+      imageBase64: body.imageBase64,
+      mimeType: body.mimeType,
+      prompt: body.prompt,
+      model: visionModel,
+    });
+    return result;
   }
 }

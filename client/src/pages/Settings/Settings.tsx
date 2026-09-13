@@ -18,6 +18,7 @@ import { Settings, CheckCircle2, AlertCircle, Loader2, Eye, EyeOff } from 'lucid
 interface ProviderForm {
   apiKey: string;
   model: string;
+  visionModel: string;
   baseUrl: string;
   organization?: string;
   name?: string;
@@ -30,9 +31,9 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 const PROVIDER_DEFAULTS: Record<string, ProviderForm> = {
-  deepseek: { apiKey: '', model: 'deepseek-chat', baseUrl: 'https://api.deepseek.com' },
-  openai: { apiKey: '', model: 'gpt-4o-mini', baseUrl: 'https://api.openai.com/v1', organization: '' },
-  custom: { apiKey: '', model: '', baseUrl: '', name: 'ollama' },
+  deepseek: { apiKey: '', model: 'deepseek-chat', visionModel: '', baseUrl: 'https://api.deepseek.com' },
+  openai: { apiKey: '', model: 'gpt-4o-mini', visionModel: 'gpt-4o', baseUrl: 'https://api.openai.com/v1', organization: '' },
+  custom: { apiKey: '', model: '', visionModel: '', baseUrl: '', name: 'ollama' },
 };
 
 function SettingsPage() {
@@ -60,6 +61,7 @@ function SettingsPage() {
         forms[key] = {
           apiKey: saved?.apiKey ?? '',
           model: saved?.model ?? PROVIDER_DEFAULTS[key].model,
+          visionModel: saved?.visionModel ?? PROVIDER_DEFAULTS[key].visionModel,
           baseUrl: saved?.baseUrl ?? PROVIDER_DEFAULTS[key].baseUrl,
           organization: saved?.organization ?? '',
           name: saved?.name ?? PROVIDER_DEFAULTS[key].name,
@@ -92,6 +94,7 @@ function SettingsPage() {
           configPayload.providers[key] = {
             apiKey: form.apiKey,
             model: form.model,
+            visionModel: form.visionModel || undefined,
             baseUrl: form.baseUrl,
             ...(key === 'openai' ? { organization: form.organization } : {}),
             ...(key === 'custom' ? { name: form.name } : {}),
@@ -247,6 +250,19 @@ function SettingsPage() {
                     className="rounded-xl"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">视觉模型（图片识别）</Label>
+                <Input
+                  value={form.visionModel}
+                  onChange={(e) => updateProvider(key, 'visionModel', e.target.value)}
+                  placeholder={defaults.visionModel || '留空则使用默认'}
+                  className="rounded-xl"
+                />
+                <p className="text-xs text-muted-foreground">
+                  需支持多模态输入的模型，如 gpt-4o、deepseek-vl2、qwen-vl 等
+                </p>
               </div>
 
               {key === 'openai' && (

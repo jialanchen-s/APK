@@ -157,7 +157,7 @@ export abstract class OpenAICompatibleAdapter implements LLMAdapter {
 
   protected buildRequestBody(params: LLMChatParams, stream: boolean): Record<string, unknown> {
     const body: Record<string, unknown> = {
-      model: this.config.model,
+      model: params.model ?? this.config.model,
       messages: params.messages.map((m) => ({ role: m.role, content: m.content })),
       temperature: params.temperature ?? this.config.defaultTemperature ?? 0.7,
       max_tokens: params.maxTokens ?? this.config.defaultMaxTokens ?? 4096,
