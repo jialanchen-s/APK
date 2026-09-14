@@ -8,7 +8,6 @@ process.on('unhandledRejection', (reason) => {
 
 import { GlobalExceptionFilter } from './common/filters/exception.filter';
 import { DatabaseModule } from './common/database/database.module';
-import { CapabilityModule } from './common/capability/capability.module';
 import { FileStorageModule } from './common/file/file-storage.module';
 import { AuthorizationModule } from './common/auth/authorization.module';
 import { UserContextMiddleware } from './common/auth/user-context.middleware';
@@ -22,15 +21,16 @@ import { AgentModule } from './modules/agent/agent.module';
 import { PriceQueryModule } from './modules/price-query/price-query.module';
 import { ViewModule } from './modules/view/view.module';
 import { AIModule } from './common/ai/ai.module';
+import { DocumentParsingModule } from './common/document-parsing/document-parsing.module';
 import { SettingsModule } from './modules/settings/settings.module';
 
 @Module({
   imports: [
     DatabaseModule,
-    CapabilityModule,
     FileStorageModule,
     AuthorizationModule,
     AIModule,
+    DocumentParsingModule,
     // ====== @route-section: business-modules START ======
     PermissionModule,
     RoleManagerModule,

@@ -16,6 +16,7 @@ import type {
   CreateAgentSessionRequest,
   SendAgentMessageRequest,
   AgentChatRequest,
+  ExtractDeviceParamsRequest,
 } from '@shared/api.interface';
 
 @Controller('api/agent')
@@ -105,6 +106,15 @@ export class AgentController {
   ) {
     const { userId } = req.userContext;
     return this.agentService.chatWithAgent(userId, id, body);
+  }
+
+  @NeedLogin()
+  @Can('use', 'Agent')
+  @Post('extract-device-params')
+  async extractDeviceParams(
+    @Body() body: ExtractDeviceParamsRequest,
+  ) {
+    return this.agentService.extractDeviceParams(body.deviceName);
   }
 
   @NeedLogin()

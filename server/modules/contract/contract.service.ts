@@ -6,16 +6,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DRIZZLE_DATABASE } from '@server/common/database/database.module';
-import { LocalCapabilityService } from '@server/common/capability/local-capability.service';
+import { DocumentParsingService } from '@server/common/document-parsing/document-parsing.service';
 import { FileStorageService } from '@server/common/file/file-storage.service';
+import { StructuredExtractionService } from '@server/common/ai/structured-extraction.service';
 import { contract, manufacturingContract, paintingContract, stampingContract, archiveLog, previewStore } from '@server/database/schema';
 import { eq, inArray, lt, sql, and, desc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
-import type { FileParseTextOneOutput } from '@shared/plugin-types';
-import {
-  callCapabilityWithTimeout,
-  serializePluginError,
-} from '@server/common/utils/plugin-call';
+import { readFile } from 'fs/promises';
 
 import type {
   ExtractPdfContractsRequest,
@@ -100,8 +97,9 @@ export class ContractService {
 
   constructor(
     @Inject(DRIZZLE_DATABASE) private readonly db: any,
-    @Inject() private readonly capabilityService: LocalCapabilityService,
     private readonly fileService: FileStorageService,
+    private readonly documentParsingService: DocumentParsingService,
+    private readonly structuredExtractionService: StructuredExtractionService,
   ) {}
 
   private async loadPreview(previewId: string): Promise<StoredPreview | null> {
@@ -770,48 +768,28 @@ export class ContractService {
     return Number.isFinite(num) ? num : undefined;
   }
 
-  private parseRowsJson(rowsJson: string): Record<string, unknown>[] {
-    const cleaned = rowsJson
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/\s*```$/, '')
-      .trim();
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch (err) {
-      this.logger.error(`PDF 提取结果 JSON 解析失败: ${JSON.stringify(err)}`);
-      throw new BadRequestException('合同数据提取结果格式异常，请重试或改用 Excel 模板上传');
-    }
-    if (!Array.isArray(parsed)) {
-      throw new BadRequestException('合同数据提取结果格式异常，请重试或改用 Excel 模板上传');
-    }
-    return parsed.filter(
-      (item): item is Record<string, unknown> => item !== null && typeof item === 'object',
-    );
-  }
-
   private async runExtractionPipeline(
     filePath: string,
     lineType: LineType | undefined,
     domain: ArchiveDomain = 'welding',
   ): Promise<ExtractPdfContractsResponse> {
-    const signedUrl = await this.fileService.createSignedUrl(filePath, 600);
-    if (!signedUrl) {
-      throw new BadRequestException('PDF 文件获取下载链接失败，请重试');
+    let buffer: Buffer;
+    try {
+      buffer = await readFile(filePath);
+    } catch (err) {
+      this.logger.error(`PDF 文件读取失败: ${err instanceof Error ? err.message : String(err)}`);
+      throw new BadRequestException('PDF 文件读取失败，请重新上传');
     }
 
-    let parsed: FileParseTextOneOutput;
+    const fileName = filePath.split(/[\\/]/).pop() || 'document.pdf';
+    let content: string;
     try {
-      parsed = (await this.callPluginWithTimeout('file_parse_text_1', 'parseDocToMarkdown', {
-        fileUrl: [signedUrl],
-      })) as FileParseTextOneOutput;
+      const result = await this.documentParsingService.parseBuffer(buffer, fileName);
+      content = result.content;
     } catch (err) {
-      this.logger.error(
-        `PDF 文档解析插件失败: ${serializePluginError(err)}`,
-      );
+      this.logger.error(`PDF 文档解析失败: ${err instanceof Error ? err.message : String(err)}`);
       throw new BadRequestException('PDF 文档解析失败，请重试或改用 Excel 模板上传');
     }
-    const content = typeof parsed?.content === 'string' ? parsed.content.trim() : '';
     if (!content) {
       throw new BadRequestException('未从 PDF 中解析出文本内容，请确认文件非扫描件');
     }
@@ -832,12 +810,7 @@ export class ContractService {
     }
 
     if (domain !== 'welding') {
-      const items = await this.extractRowsWithSlices(
-        'manufacturing_contract_detail_extract_1',
-        'contract_content',
-        text,
-        onProgress,
-      );
+      const items = await this.extractRowsWithSlices(text, 'manufacturing', onProgress);
 
       const rows: ManufacturingContractRow[] = items
         .filter((item) => ContractService.pdfStr(item.device_material_name) !== '')
@@ -860,12 +833,7 @@ export class ContractService {
       return { rows };
     }
 
-    const items = await this.extractRowsWithSlices(
-      'contract_detail_extract_1',
-      'contract_text',
-      text,
-      onProgress,
-    );
+    const items = await this.extractRowsWithSlices(text, 'welding', onProgress);
 
     const rows: ContractRow[] = items
       .filter((item) => ContractService.pdfStr(item.device_material_name) !== '')
@@ -943,7 +911,6 @@ export class ContractService {
   private static readonly EXTRACT_CONCURRENCY = 3;
   private static readonly EXTRACT_TOTAL_DEADLINE_MS = 15 * 60 * 1000;
   private static readonly MAX_EXTRACT_CHARS = 300000;
-  private static readonly PLUGIN_CALL_TIMEOUT_MS = 100000;
   private static readonly PREVIEW_TTL_MS = 24 * 60 * 60 * 1000;
   private static readonly ARCHIVE_LOG_MAX = 500;
 
@@ -985,20 +952,6 @@ export class ContractService {
     return slices;
   }
 
-  private async callPluginWithTimeout(
-    instanceId: string,
-    action: string,
-    payload: Record<string, unknown>,
-  ): Promise<unknown> {
-    return callCapabilityWithTimeout(
-      this.capabilityService,
-      instanceId,
-      action,
-      payload,
-      ContractService.PLUGIN_CALL_TIMEOUT_MS,
-    );
-  }
-
   private static splitSliceInHalf(slice: string): [string, string] {
     const mid = Math.floor(slice.length / 2);
     let cut = slice.lastIndexOf('\n', mid);
@@ -1008,23 +961,9 @@ export class ContractService {
     return [slice.slice(0, cut), slice.slice(cut)];
   }
 
-  private parseRowsJsonValue(extracted: unknown): Record<string, unknown>[] {
-    const rowsJson = (extracted as { rowsJson?: unknown } | null)?.rowsJson;
-    if (Array.isArray(rowsJson)) {
-      return rowsJson.filter(
-        (item): item is Record<string, unknown> => item !== null && typeof item === 'object',
-      );
-    }
-    if (typeof rowsJson === 'string' && rowsJson.trim()) {
-      return this.parseRowsJson(rowsJson);
-    }
-    return [];
-  }
-
   private async extractRowsWithSlices(
-    instanceId: string,
-    textField: string,
     content: string,
+    domain: 'welding' | 'manufacturing',
     onProgress?: (done: number, total: number) => void,
   ): Promise<Record<string, unknown>[]> {
     if (content.length > ContractService.MAX_EXTRACT_CHARS) {
@@ -1034,7 +973,7 @@ export class ContractService {
     }
     const slices = ContractService.sliceExtractText(content);
     this.logger.log(
-      `合同文本分片提取: instance=${instanceId}, slices=${slices.length}, totalChars=${content.length}`,
+      `合同文本分片提取: domain=${domain}, slices=${slices.length}, totalChars=${content.length}`,
     );
     const deadline = Date.now() + ContractService.EXTRACT_TOTAL_DEADLINE_MS;
     const results: Record<string, unknown>[][] = new Array(slices.length);
@@ -1049,7 +988,7 @@ export class ContractService {
             '合同提取总耗时超限，请拆分文件后分次上传或改用 Excel 模板上传',
           );
         }
-        results[index] = await this.extractSingleSlice(instanceId, textField, slices[index], 0);
+        results[index] = await this.extractSingleSlice(domain, slices[index], 0);
         completed += 1;
         onProgress?.(completed, slices.length);
       }
@@ -1064,40 +1003,27 @@ export class ContractService {
   }
 
   private async extractSingleSlice(
-    instanceId: string,
-    textField: string,
+    domain: 'welding' | 'manufacturing',
     slice: string,
     depth: number,
   ): Promise<Record<string, unknown>[]> {
     let err: unknown;
     try {
-      return this.parseRowsJsonValue(
-        await this.callPluginWithTimeout(instanceId, 'textToJson', { [textField]: slice }),
-      );
+      return await this.structuredExtractionService.extractContractRows(slice, domain);
     } catch (e) {
       err = e;
     }
-    const isTimeout = err instanceof Error && err.message.includes('执行超时');
-    if (isTimeout) {
-      try {
-        return this.parseRowsJsonValue(
-          await this.callPluginWithTimeout(instanceId, 'textToJson', { [textField]: slice }),
-        );
-      } catch (e) {
-        err = e;
-      }
-    }
     if (depth < ContractService.MAX_SPLIT_DEPTH && slice.length > ContractService.MIN_RETRY_SLICE_CHARS) {
       this.logger.warn(
-        `合同提取分片失败，减半重试: chars=${slice.length}, depth=${depth}, err=${serializePluginError(err)}`,
+        `合同提取分片失败，减半重试: chars=${slice.length}, depth=${depth}, err=${err instanceof Error ? err.message : String(err)}`,
       );
       const halves = ContractService.splitSliceInHalf(slice);
       const [first, second] = await Promise.all(
-        halves.map((half: string) => this.extractSingleSlice(instanceId, textField, half, depth + 1)),
+        halves.map((half: string) => this.extractSingleSlice(domain, half, depth + 1)),
       );
       return [...first, ...second];
     }
-    this.logger.error(`合同提取插件失败（已重试）: ${serializePluginError(err)}`);
+    this.logger.error(`合同提取失败（已重试）: ${err instanceof Error ? err.message : String(err)}`);
     throw new BadRequestException('合同内容提取失败，请重试或改用 Excel 模板上传');
   }
 }

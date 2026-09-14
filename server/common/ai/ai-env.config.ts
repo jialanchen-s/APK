@@ -4,7 +4,7 @@ import type { OpenAIConfig } from './openai-adapter';
 import type { GenericOpenAICompatibleConfig } from './generic-openai-compatible-adapter';
 
 export interface AIProviderEnv {
-  AI_DEFAULT_PROVIDER?: 'deepseek' | 'openai' | 'apaas-plugin' | 'custom' | 'mock';
+  AI_DEFAULT_PROVIDER?: 'deepseek' | 'openai' | 'custom' | 'mock';
   AI_FALLBACK_CHAIN?: string;
 
   DEEPSEEK_API_KEY?: string;
@@ -79,7 +79,7 @@ export function buildCustomLLMConfig(env: AIProviderEnv): GenericOpenAICompatibl
 }
 
 export function buildGatewayConfig(env: AIProviderEnv): AIGatewayConfig {
-  const defaultAdapter = env.AI_DEFAULT_PROVIDER ?? 'apaas-plugin';
+  const defaultAdapter = env.AI_DEFAULT_PROVIDER ?? 'mock';
 
   const fallbackChain = env.AI_FALLBACK_CHAIN
     ? env.AI_FALLBACK_CHAIN.split(',').map((s) => s.trim()).filter(Boolean)

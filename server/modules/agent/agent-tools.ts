@@ -1,5 +1,5 @@
 import { eq, and, desc, count, like, sql } from 'drizzle-orm';
-import type { LocalCapabilityService } from '@server/common/capability/local-capability.service';
+import type { AIGatewayService } from '@server/common/ai/ai-gateway.service';
 import {
   contract,
   model as modelTable,
@@ -9,8 +9,6 @@ import {
 import type { EstimateTaskService } from '@server/modules/estimate-task/estimate-task.service';
 import type { ModelService } from '@server/modules/model/model.service';
 import type { EstimateTaskRow } from '@shared/api.interface';
-import type { WeldingEquipmentParamExtractOneOutput } from '@shared/plugin-types';
-import { callCapabilityWithTimeout } from '@server/common/utils/plugin-call';
 
 function formatDateInChina(value: Date | string | number | null | undefined): string {
   if (value == null) return '';
@@ -19,9 +17,34 @@ function formatDateInChina(value: Date | string | number | null | undefined): st
   return d.toLocaleDateString('sv', { timeZone: 'Asia/Shanghai' });
 }
 
+function parseJsonFromText(text: string): Record<string, unknown> | null {
+  if (!text) return null;
+  const trimmed = text.trim();
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+  } catch { /* continue */ }
+  const codeBlock = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlock) {
+    try {
+      const parsed = JSON.parse(codeBlock[1].trim());
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    } catch { /* continue */ }
+  }
+  const first = trimmed.indexOf('{');
+  const last = trimmed.lastIndexOf('}');
+  if (first !== -1 && last > first) {
+    try {
+      const parsed = JSON.parse(trimmed.substring(first, last + 1));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    } catch { /* continue */ }
+  }
+  return null;
+}
+
 export interface ToolContext {
   db: any;
-  capabilityService: LocalCapabilityService;
+  gateway: AIGatewayService;
   estimateTaskService: EstimateTaskService;
   modelService: ModelService;
   userId: string;
@@ -314,14 +337,20 @@ async function extractDeviceParams(
 ): Promise<{ success: boolean; data?: unknown; error?: string }> {
   const deviceName = String(params.device_name ?? '');
 
-  const output = await callCapabilityWithTimeout(
-    ctx.capabilityService,
-    'welding_equipment_param_extract_1',
-    'textToJson',
-    { equipment_text: deviceName },
-  ) as WeldingEquipmentParamExtractOneOutput;
+  const output = await ctx.gateway.chat({
+    messages: [
+      {
+        role: 'system',
+        content: '你是一个设备参数提取专家。从设备名称中提取参数，仅输出JSON（不要用```包裹）：\n{"weight":"","power":"","voltage":"","current":"","pressure":"","frequency":"","size":"","material":"","brand":"","model_spec":""}\n无法提取的字段填空字符串。',
+      },
+      { role: 'user', content: `设备名称：${deviceName}` },
+    ],
+    temperature: 0.1,
+    maxTokens: 1024,
+  });
 
-  return { success: true, data: output };
+  const parsed = parseJsonFromText(output.content);
+  return { success: true, data: parsed ?? {} };
 }
 
 async function calculateModelPrice(
@@ -359,12 +388,19 @@ async function calculateModelPrice(
 
   let extractedParams: Record<string, string | number> = {};
   try {
-    const output = await callCapabilityWithTimeout(
-      ctx.capabilityService,
-      'welding_equipment_param_extract_1',
-      'textToJson',
-      { equipment_text: deviceName },
-    ) as WeldingEquipmentParamExtractOneOutput;
+    const output = await ctx.gateway.chat({
+      messages: [
+        {
+          role: 'system',
+          content: '你是一个设备参数提取专家。从设备名称中提取参数，仅输出JSON（不要用```包裹）：\n{"weight":"","power":"","voltage":"","current":"","pressure":"","frequency":"","size":"","material":"","brand":"","model_spec":""}\n无法提取的字段填空字符串。',
+        },
+        { role: 'user', content: `设备名称：${deviceName}` },
+      ],
+      temperature: 0.1,
+      maxTokens: 1024,
+    });
+
+    const rawOutput = parseJsonFromText(output.content) ?? {};
 
     const paramAliases: Record<string, string[]> = {
       weight: ['weight', '重量', '设备重量', 'weight_kg'],
@@ -380,7 +416,7 @@ async function calculateModelPrice(
     };
 
     for (const [field, aliases] of Object.entries(paramAliases)) {
-      const value = (output as unknown as Record<string, unknown>)[field];
+      const value = (rawOutput as Record<string, unknown>)[field];
       if (value !== undefined && value !== null && value !== '') {
         for (const alias of aliases) {
           extractedParams[alias] = typeof value === 'number' ? value : String(value);

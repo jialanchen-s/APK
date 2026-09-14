@@ -25,7 +25,7 @@ import type {
   ContractProjectsResponse,
   ArchiveDomain,
 } from '@shared/api.interface';
-import type { WeldingCostAnomalyDetectionOneOutput, WeldingEquipmentParamExtractOneOutput } from '@shared/plugin-types';
+import type { WeldingCostAnomalyDetectionOneOutput, WeldingEquipmentParamExtractOneOutput } from '@shared/api.interface';
 import { ModelService } from '../model/model.service';
 import { AIGatewayService } from '@server/common/ai/ai-gateway.service';
 

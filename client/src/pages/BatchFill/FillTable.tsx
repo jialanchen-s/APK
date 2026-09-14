@@ -15,9 +15,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { tryoutModelByModelId } from '@client/src/api/model';
-import { capabilityClient } from '@client/src/common/platform/capability-client';
+import { extractDeviceParams } from '@client/src/api/agent';
 import type { PendingItem, PendingItemParam } from '@shared/api.interface';
-import type { WeldingEquipmentParamExtractOneOutput } from '@shared/plugin-types';
 
  const PARAM_LABELS: Record<string, string> = {
    line_type: '线体类型',
@@ -163,12 +162,9 @@ const FillTable: React.FC<FillTableProps> = ({
   ): Promise<Record<string, unknown> | null> => {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const result = await capabilityClient
-          .load('welding_equipment_param_extract_1')
-          .call<WeldingEquipmentParamExtractOneOutput>('textToJson', {
-            equipment_text: deviceName,
-          });
-        return result as unknown as Record<string, unknown>;
+        const result = await extractDeviceParams({ deviceName });
+        if (result.success) return result.data;
+        return null;
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
         const isRateLimit = errMsg.includes('频繁') || errMsg.includes('RateLimit');

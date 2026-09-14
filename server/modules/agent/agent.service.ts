@@ -1,6 +1,6 @@
 import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { DRIZZLE_DATABASE } from '@server/common/database/database.module';
-import { LocalCapabilityService } from '@server/common/capability/local-capability.service';
+import { AIGatewayService } from '@server/common/ai/ai-gateway.service';
 import { eq, and, desc, count, inArray, sql, avg, min, max, like, gte } from 'drizzle-orm';
 import {
   agentSession,
@@ -11,7 +11,6 @@ import {
 } from '@server/database/schema';
 import { EstimateTaskService } from '@server/modules/estimate-task/estimate-task.service';
 import { ModelService } from '@server/modules/model/model.service';
-import { callCapabilityWithTimeout } from '@server/common/utils/plugin-call';
 import {
   buildToolDefinitionsPrompt,
   executeAgentTool,
@@ -46,7 +45,7 @@ export class AgentService {
 
   constructor(
     @Inject(DRIZZLE_DATABASE) private readonly db: any,
-    @Inject() private readonly capabilityService: LocalCapabilityService,
+    private readonly gateway: AIGatewayService,
     private readonly estimateTaskService: EstimateTaskService,
     private readonly modelService: ModelService,
   ) {}
@@ -286,7 +285,7 @@ export class AgentService {
 
     const toolCtx: ToolContext = {
       db: this.db,
-      capabilityService: this.capabilityService,
+      gateway: this.gateway,
       estimateTaskService: this.estimateTaskService,
       modelService: this.modelService,
       userId,
@@ -302,15 +301,14 @@ export class AgentService {
 
       let llmContent = '';
       try {
-        const output = await callCapabilityWithTimeout(
-          this.capabilityService,
-          'welding_cost_calculation_chat_assistant_1',
-          'textGenerate',
-          {
-            user_question: data.content,
-            system_context: systemPrompt + '\n\n' + context,
-          },
-        ) as { content: string };
+        const output = await this.gateway.chat({
+          messages: [
+            { role: 'system', content: systemPrompt + '\n\n' + context },
+            { role: 'user', content: data.content },
+          ],
+          temperature: 0.7,
+          maxTokens: 4096,
+        });
         llmContent = output.content || '';
       } catch (err) {
         this.logger.error('LLM调用失败', JSON.stringify(err));
@@ -684,6 +682,12 @@ export class AgentService {
     return null;
   }
 
+  private parseJsonResult(text: string): unknown {
+    const jsonStr = this.extractJson(text);
+    if (!jsonStr) return null;
+    try { return JSON.parse(jsonStr); } catch { return null; }
+  }
+
   async getContext(sessionId: string): Promise<AgentContextResponse> {
     const detail = await this.getSession(sessionId);
     const context = this.buildContextString(detail.session, detail.messages);
@@ -920,16 +924,19 @@ export class AgentService {
     const devices: DeviceMatchItem[] = [];
     for (const item of pendingRows) {
       try {
-        const result: any = await callCapabilityWithTimeout(
-          this.capabilityService,
-          'welding_equipment_intelligent_matching_1',
-          'textToJson',
-          {
-            device_name: item.deviceName,
-            available_models: modelsJson,
-            spec_description: '',
-          },
-        );
+        const matchResult = await this.gateway.chat({
+          messages: [
+            {
+              role: 'system',
+              content: '你是一个焊装设备模型匹配专家。根据设备名称，从可用模型列表中选择最匹配的模型。仅输出JSON（不要用```包裹）：\n{"matched_model_id":"","matched_model_name":"","confidence":0,"match_reason":"","alternative_model_id":"","alternative_model_name":""}\nconfidence为0-100的整数。',
+            },
+            { role: 'user', content: `设备名称：${item.deviceName}\n可用模型：${modelsJson}` },
+          ],
+          temperature: 0.1,
+          maxTokens: 512,
+        });
+
+        const result = this.parseJsonResult(matchResult.content) as Record<string, unknown> ?? {};
 
         devices.push({
           pending_item_id: item.id,
@@ -1007,18 +1014,23 @@ export class AgentService {
       for (const v of inputVars) {
         if (!v.required) continue;
         try {
-          const result: any = await callCapabilityWithTimeout(
-            this.capabilityService,
-            'welding_equipment_param_extraction_1',
-            'textToJson',
-            {
-              device_name: device.device_name,
-              param_name: v.name,
-              param_type: v.type,
-              description: v.description || '',
-            },
-          );
-          params[v.name] = result.value ?? (v.type === 'number' ? 0 : '');
+          const paramResult = await this.gateway.chat({
+            messages: [
+              {
+                role: 'system',
+                content: '你是一个设备参数提取专家。根据设备名称提取指定参数的值。仅输出JSON（不要用```包裹）：\n{"value":""}\n如果无法提取，value填空字符串或0（数值型）。',
+              },
+              {
+                role: 'user',
+                content: `设备名称：${device.device_name}\n参数名：${v.name}\n参数类型：${v.type}\n参数描述：${v.description || '无'}`,
+              },
+            ],
+            temperature: 0.1,
+            maxTokens: 256,
+          });
+
+          const parsed = this.parseJsonResult(paramResult.content) as Record<string, unknown>;
+          params[v.name] = (parsed?.value as string | number) ?? (v.type === 'number' ? 0 : '');
         } catch (err) {
           this.logger.error(`Param extraction failed for ${v.name}: ${JSON.stringify(err)}`);
           params[v.name] = v.type === 'number' ? 0 : '';
@@ -1320,5 +1332,21 @@ export class AgentService {
       `\n\n如需更详细的筛选（如供货方式、专通用等），请前往【历史价格快查】页面。`;
 
     return this.saveMessage(sessionId, 'agent', responseContent, 'text');
+  }
+
+  async extractDeviceParams(deviceName: string): Promise<{ success: boolean; data: Record<string, unknown> }> {
+    const output = await this.gateway.chat({
+      messages: [
+        {
+          role: 'system',
+          content: '你是一个设备参数提取专家。根据设备名称提取指定参数的值。仅输出JSON（不要用```包裹）：\n{"value":""}\n如果无法提取，value填空字符串或0（数值型）。',
+        },
+        { role: 'user', content: `设备名称：${deviceName}` },
+      ],
+      temperature: 0.1,
+      maxTokens: 1024,
+    });
+    const parsed = this.parseJsonResult(output.content) as Record<string, unknown> ?? {};
+    return { success: true, data: parsed };
   }
 }

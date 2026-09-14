@@ -64,3 +64,20 @@ export async function recognizeImage(params: {
   });
   return response.data;
 }
+
+export interface ParseDocumentResponse {
+  content: string;
+  pageCount?: number;
+}
+
+export async function parseDocument(params: {
+  fileBase64: string;
+  fileName: string;
+}): Promise<ParseDocumentResponse> {
+  const response = await axiosForBackend({
+    url: '/api/settings/parse-document',
+    method: 'POST',
+    data: params,
+  });
+  return response.data;
+}

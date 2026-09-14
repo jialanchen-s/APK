@@ -11,6 +11,8 @@ import type {
   AgentChatRequest,
   AgentChatResponse,
   AgentTaskStatusResponse,
+  ExtractDeviceParamsRequest,
+  ExtractDeviceParamsResponse,
 } from '@shared/api.interface';
 
 export async function createAgentSession(
@@ -114,6 +116,17 @@ export async function deleteAgentSession(sessionId: string): Promise<{ success: 
   const response = await axiosForBackend({
     url: `/api/agent/sessions/${sessionId}`,
     method: 'DELETE',
+  });
+  return response.data;
+}
+
+export async function extractDeviceParams(
+  data: ExtractDeviceParamsRequest,
+): Promise<ExtractDeviceParamsResponse> {
+  const response = await axiosForBackend({
+    url: '/api/agent/extract-device-params',
+    method: 'POST',
+    data,
   });
   return response.data;
 }

@@ -37,7 +37,7 @@ export class AIGatewayService {
   private readonly logger = new Logger(AIGatewayService.name);
   private readonly adapters = new Map<string, LLMAdapter>();
   private readonly cache = new Map<string, CacheEntry>();
-  private config: AIGatewayConfig = { defaultAdapter: 'apaas-plugin' };
+  private config: AIGatewayConfig = { defaultAdapter: 'mock' };
 
   registerAdapter(adapter: LLMAdapter): void {
     this.adapters.set(adapter.name, adapter);

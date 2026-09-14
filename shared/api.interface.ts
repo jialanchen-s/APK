@@ -714,6 +714,15 @@ export interface AgentChatResponse {
   agentMessage: AgentMessage;
 }
 
+export interface ExtractDeviceParamsRequest {
+  deviceName: string;
+}
+
+export interface ExtractDeviceParamsResponse {
+  success: boolean;
+  data: Record<string, unknown>;
+}
+
 // ==================== 历史价格快查模块 ====================
 
 export type PriceQueryLineType = '全部' | '主线' | '侧围线' | '开闭件线' | '下车体线';
@@ -912,4 +921,34 @@ export interface BatchUpdateRoleMappingsRequest {
   roleKey: string;
   add: string[];
   remove: string[];
+}
+
+// ==================== AI 任务输出类型 ====================
+
+export interface WeldingEquipmentParamExtractOneOutput {
+  material: string;
+  current: number;
+  power: number;
+  voltage: number;
+  workpiece_thickness: number;
+  cycle_time: number;
+  quantity: number;
+  electrode_diameter: number;
+  frequency: number;
+  welding_type: string;
+  model_spec: string;
+  weight: number;
+  other_params: string;
+  size: string;
+  pressure: number;
+  brand: string;
+}
+
+export interface WeldingCostAnomalyDetectionOneOutput {
+  risk_level: string;
+  anomaly_count: number;
+  anomaly_devices: string;
+  anomaly_levels: string;
+  overall_assessment: string;
+  recommendation: string;
 }

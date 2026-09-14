@@ -1,9 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import { LocalCapabilityService } from '@server/common/capability/local-capability.service';
 import { DRIZZLE_DATABASE } from '@server/common/database/database.module';
 import { AIGatewayService } from './ai-gateway.service';
-import { ApaasPluginAdapter } from './apaas-plugin-adapter';
 import { DeepSeekAdapter } from './deepseek-adapter';
 import { OpenAIAdapter } from './openai-adapter';
 import { GenericOpenAICompatibleAdapter } from './generic-openai-compatible-adapter';
@@ -40,7 +38,6 @@ export class AIBootstrapService implements OnModuleInit {
 
   constructor(
     private readonly gateway: AIGatewayService,
-    @Optional() @Inject() private readonly capabilityService: LocalCapabilityService,
     @Optional() @Inject(DRIZZLE_DATABASE) private readonly db: DrizzleDb,
   ) {}
 
@@ -49,14 +46,6 @@ export class AIBootstrapService implements OnModuleInit {
 
     const mockAdapter = new MockLLMAdapter();
     this.gateway.registerAdapter(mockAdapter);
-
-    if (this.capabilityService) {
-      this.gateway.registerAdapter(
-        new ApaasPluginAdapter({ capabilityService: this.capabilityService }),
-      );
-    } else {
-      this.logger.warn('CapabilityService not available — ApaasPluginAdapter skipped');
-    }
 
     const dbConfig = await this.loadDBConfig();
     if (dbConfig) {

@@ -4,6 +4,7 @@ import { SettingsService } from './settings.service';
 import { AIGatewayService } from '@server/common/ai/ai-gateway.service';
 import { AIConfigService } from './ai-config.service';
 import { ImageRecognitionService } from '@server/common/ai/image-recognition.service';
+import { DocumentParsingService } from '@server/common/document-parsing/document-parsing.service';
 
 export const AI_CONFIG_KEY = 'ai_provider_config';
 
@@ -33,6 +34,7 @@ export class SettingsController {
     private readonly aiConfigService: AIConfigService,
     private readonly gateway: AIGatewayService,
     private readonly imageRecognitionService: ImageRecognitionService,
+    private readonly documentParsingService: DocumentParsingService,
   ) {}
 
   @NeedLogin()
@@ -90,5 +92,16 @@ export class SettingsController {
       model: visionModel,
     });
     return result;
+  }
+
+  @NeedLogin()
+  @Post('parse-document')
+  async parseDocument(@Body() body: { fileBase64: string; fileName: string }) {
+    if (!body.fileBase64 || !body.fileName) {
+      throw new BadRequestException('fileBase64 和 fileName 为必填项');
+    }
+    const buffer = Buffer.from(body.fileBase64, 'base64');
+    const result = await this.documentParsingService.parseBuffer(buffer, body.fileName);
+    return { content: result.content, pageCount: result.pageCount };
   }
 }

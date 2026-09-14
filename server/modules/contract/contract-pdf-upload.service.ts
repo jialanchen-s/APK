@@ -1,11 +1,9 @@
 import {
-  Inject,
   Injectable,
   Logger,
   BadRequestException,
 } from '@nestjs/common';
-import { LocalCapabilityService } from '@server/common/capability/local-capability.service';
-import { FileStorageService } from '@server/common/file/file-storage.service';
+import { DocumentParsingService } from '@server/common/document-parsing/document-parsing.service';
 import { randomUUID } from 'crypto';
 import type {
   ArchiveDomain,
@@ -19,8 +17,6 @@ import type {
   PdfUploadInitRequest,
   PdfUploadInitResponse,
 } from '@shared/api.interface';
-import type { FileParseTextOneOutput } from '@shared/plugin-types';
-import { serializePluginError } from '@server/common/utils/plugin-call';
 import { ContractService } from './contract.service';
 import { ImageRecognitionService } from '@server/common/ai/image-recognition.service';
 
@@ -77,12 +73,10 @@ export class ContractPdfUploadService {
   private static readonly MAX_FILE_BYTES = 30 * 1024 * 1024;
   private static readonly SESSION_TTL_MS = 30 * 60 * 1000;
   private static readonly TASK_TTL_MS = 30 * 60 * 1000;
-  private static readonly DOC_PARSE_TIMEOUT_MS = 100000;
   private static readonly IMAGE_RECOGNITION_TIMEOUT_MS = 120000;
 
   constructor(
-    @Inject() private readonly capabilityService: LocalCapabilityService,
-    private readonly fileService: FileStorageService,
+    private readonly documentParsingService: DocumentParsingService,
     private readonly contractService: ContractService,
     private readonly imageRecognitionService: ImageRecognitionService,
   ) {}
@@ -245,38 +239,17 @@ export class ContractPdfUploadService {
         : '合同内容提取失败，请重试或改用 Excel 模板上传';
       task.status = 'failed';
       this.logger.error(
-        `识别任务失败（保留会话供重试）: task=${taskId}, err=${serializePluginError(err)}`,
+        `识别任务失败（保留会话供重试）: task=${taskId}, err=${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }
 
   private async parseDocumentText(fileName: string, content: Buffer): Promise<string> {
-    const uploaded = await this.fileService.upload(content, {
-      fileName: fileName.toLowerCase().endsWith('.pdf') ? fileName : `${fileName}.pdf`,
-      contentType: 'application/pdf',
-    });
-    try {
-      const signedUrl = await this.fileService.createSignedUrl(uploaded.filePath, 600);
-      if (!signedUrl) {
-        throw new BadRequestException('PDF 文件获取下载链接失败，请重试');
-      }
-      const parsed = await this.callWithTimeout(
-        'file_parse_text_1',
-        'parseDocToMarkdown',
-        { fileUrl: [signedUrl] },
-        ContractPdfUploadService.DOC_PARSE_TIMEOUT_MS,
-      );
-      const output = parsed as FileParseTextOneOutput | null;
-      const text = typeof output?.content === 'string' ? output.content.trim() : '';
-      if (!text) {
-        throw new BadRequestException('未从 PDF 中解析出文本内容，请确认文件非扫描件');
-      }
-      return text;
-    } finally {
-      await this.fileService.remove([uploaded.filePath]).catch((err: unknown) => {
-        this.logger.warn(`临时 PDF 清理失败: ${JSON.stringify(err)}`);
-      });
+    const result = await this.documentParsingService.parseBuffer(content, fileName);
+    if (!result.content) {
+      throw new BadRequestException('未从 PDF 中解析出文本内容，请确认文件非扫描件');
     }
+    return result.content;
   }
 
   private async recognizeImageText(fileName: string, content: Buffer): Promise<string> {
@@ -293,24 +266,5 @@ export class ContractPdfUploadService {
       throw new BadRequestException('未从图片中识别出文本内容，请确认图片清晰完整');
     }
     return text;
-  }
-
-  private async callWithTimeout(
-    instanceId: string,
-    action: string,
-    payload: Record<string, unknown>,
-    timeoutMs: number,
-  ): Promise<unknown> {
-    const call = this.capabilityService.load(instanceId).call(action, payload);
-    call.catch(() => undefined);
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`插件 ${instanceId} 执行超时`)), timeoutMs);
-    });
-    const race = Promise.race([call, timeoutPromise]);
-    race.finally(() => {
-      if (timer !== undefined) clearTimeout(timer);
-    });
-    return race;
   }
 }

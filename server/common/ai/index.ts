@@ -4,7 +4,6 @@ export * from './openai-compatible-adapter';
 export * from './deepseek-adapter';
 export * from './openai-adapter';
 export * from './generic-openai-compatible-adapter';
-export * from './apaas-plugin-adapter';
 export * from './ai-gateway.service';
 export * from './ai-bootstrap.service';
 export * from './ai.module';

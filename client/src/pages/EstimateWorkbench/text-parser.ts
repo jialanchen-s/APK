@@ -1,5 +1,4 @@
-import { capabilityClient } from '@client/src/common/platform/capability-client';
-import { recognizeImage } from '@client/src/api/settings';
+import { recognizeImage, parseDocument } from '@client/src/api/settings';
 import type {
   EstimateTaskRow,
   LineType,
@@ -179,21 +178,17 @@ export function parseTextRows(text: string, defaultLineType?: LineType): Estimat
   return [];
 }
 
-/** 调用 file_parse_text_1 插件解析 PDF/Word → markdown 文本 */
+/** 通过后端解析 PDF/Word → 文本 */
 export async function parseDocumentToText(file: File): Promise<string> {
-  const result = await capabilityClient
-    .load('file_parse_text_1')
-    .call('parseDocToMarkdown', { fileUrl: [file] });
-
-  if (result && typeof result === 'object' && 'content' in result) {
-    const content = (result as { content: unknown }).content;
-    return typeof content === 'string'
-      ? content
-      : content
-        ? String(content)
-        : '';
+  const arrayBuffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
   }
-  return '';
+  const fileBase64 = btoa(binary);
+  const result = await parseDocument({ fileBase64, fileName: file.name });
+  return result.content;
 }
 
 /** 通过后端 AI Gateway 识别图片内容 → 文本 */
